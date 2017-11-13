@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Hello, Rust!</title>
+    <meta name="description" content="An introduction to Rust!">
+    <meta name="author" content="Wafflespeanut">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="../../css/reveal.css">
+    <link rel="stylesheet" href="../../css/theme/simple.css" id="theme">
+    <link rel="stylesheet" href="../../lib/css/zenburn.css">
+    <link rel="stylesheet" href="custom.css">
+    <script>
+      if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = '../../css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+      }
+    </script>
+  </head>
+
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section data-background="images/logo.png" data-background-size="12vw" data-background-position="44vw 5vh">
+          <br>
+          <h2>Hello, Rust!</h2>
+            <pre><code class="rust">
+    fn main() {
+        println!("வணக்கம்!");
+    }
+              </code></pre>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+        <section>
+          <section>
+            <h2>Brief introduction</h2>
+            <ul>
+              <li class="fragment roll-in">Systems programming language</li>
+              <li class="fragment roll-in">Performance without compromising safety</li>
+              <li class="fragment roll-in">No Garbage Collector!</li>
+              <li class="fragment roll-in">Zero-cost abstractions</li>
+              <li class="fragment roll-in">Fearless concurrency</li>
+              <li class="fragment roll-in">Strong static typing, generics, type inference, mutability, ...</li>
+            </ul>
+            <br/>
+            <p align=right class="fragment roll-in">... and a <strong>lot more!</strong></p>
+          </section>
+          <section>
+            <h2>Why Rust?</h2>
+          </section>
+          <section>
+            <h3>C/C++ problems: dangling pointers</h3>
+            <pre><code class="cpp">
+    int *some_dumb_function() {
+        int a = 2;
+        return &amp;a;      // return reference to a local variable
+    }
+
+    void foo() {
+        int *raw_ptr = some_dumb_function();
+        *raw_ptr = 3;   // UB or segfault?
+    }
+            </code></pre>
+          </section>
+          <section>
+            <h3>C/C++ problems: Use after free</h3>
+            <pre><code class="cpp">
+    void *another_dumb_function() {
+        int *ptr = malloc(sizeof(int));
+        free(ptr);
+        printf("%d", *ptr);   // uh oh! freed memory!
+    }
+            </code></pre>
+          </section>
+          <section>
+            <h3>C/C++ problems: Double free</h3>
+            <pre><code class="cpp">
+    void *another_dumb_function() {
+        int *ptr = malloc(sizeof(int));
+        free(ptr);
+        free(ptr);    // wheee...
+    }
+            </code></pre>
+          </section>
+          <section>
+            <h2>And a lot more!!!</h2>
+            <br/>
+            <ul>
+              <li class="fragment">Out of bounds indexing</li>
+              <li class="fragment">Iterator invalidation</li>
+              <li class="fragment">Null pointer dereference</li>
+              <li class="fragment">Data races in parallelization</li>
+            </ul>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>Why care?</h2>
+            <br/>
+            <p class="fragment">Segfaults! Crashes!</p>
+            <span class="fragment"><img data-src="images/windows.png" /></span>
+            <p class="fragment">From OS and compilers to browser and game engines, C/C++ is <em>almost</em> everywhere!</p>
+          </section>
+          <section data-transition="slide-in fade-out">
+            <h3>Why not use something else?</h3>
+            <span class="fragment">
+              <img width="80%" src="images/old-lang.png">
+            </span>
+          </section>
+          <section data-transition="fade-in">
+            <h3>What about new languages?</h3>
+            <img width="80%" src="images/new-lang.png">
+          </section>
+        </section>
+      </div>
+    </div>
+
+    <script src="../../lib/js/head.min.js"></script>
+    <script src="../../js/reveal.js"></script>
+    <script>
+
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        autoSlideStoppable: false,
+        transitionSpeed: 'slow',
+        mouseWheel: true,
+
+        theme: Reveal.getQueryHash().theme,
+        transition: Reveal.getQueryHash().transition || 'default',
+
+        dependencies: [
+          { src: '../../lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: '../../plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+          { src: '../../plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+          { src: '../../plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+        ]
+      });
+    </script>
+  </body>
+</html>
