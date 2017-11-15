@@ -99,6 +99,14 @@
               <li class="fragment">Data races in parallelization</li>
             </ul>
           </section>
+          <section>
+            <h3>Analogy</h3>
+            <div style="display: flex;">
+              <img class="fragment" src="images/shockwave.jpg">
+              <span style="width: 10px"></span>
+              <img class="fragment" src="images/tesla-semi.jpg">
+            </div>
+          </section>
         </section>
         <section>
           <section>
@@ -127,7 +135,7 @@
             <h3>Existing solutions use GC</h3>
             <br>
             <ul>
-              <li class="fragment">Coder creates objects. Computer has to remove them (no explicit <code>malloc</code> or <code>free</code>).</li>
+              <li class="fragment">Coder creates objects. Computer has to remove them (no explicit "malloc" or "free").</li>
               <li class="fragment">Tracing GC: It doesn't know <em>when</em> to remove objects. Tracks them periodically.</li>
               <li class="fragment">RC-based GC: Atomic operation (expensive).</li>
             </ul>
@@ -226,7 +234,7 @@
 
     let s = "Hello, world!";
     take(s);
-    println!("{}", s);        // strangely, this works!
+    println!("{}", s);        // this works!
 
     let owned = String::from("Hello, world!");
     let stolen = owned;
@@ -349,8 +357,8 @@
               <pre><code class="rust">
     let heap_int = {
         let five = Box::new(5u8);   // malloc(1)
-        &amp;five   // free() happened
-    };
+        &amp;five
+    };  // free() happened
 
     // `heap_int` DANGLING??!!
               </code></pre>
@@ -376,6 +384,20 @@
             </code></pre>
             <code class="fragment rust-error">error: lifetime of reference outlives lifetime of borrowed content...</code>
           </section>
+          <section data-transition="slide">
+            <h3>Owned and Borrowed</h3>
+            <pre><code class="rust">
+    let static_str = "Hello, world";     // &amp;'static str
+    let heap_str = {
+      let owned = String::from(static_str);   // heap-allocated
+      let borrowed = &amp;owned;    // &amp;'a str
+      owned
+    };
+
+    let array: &amp;[u8] = &amp;[0, 1, 2, 3, 4];   // &amp;'static [u8]
+    let vector = array.to_owned();    // Vec&lt;u8&gt;
+            </code></pre>
+          </section>
         </section>
         <section>
           <h2>Questions?</h2>
@@ -387,7 +409,7 @@
           <section>
             <h1>Basics</h1>
           </section>
-          <section>
+          <section data-transition="slide">
             <h2>Expression-based</h2>
             <p>(semicolons have meaning!)</p>
             <pre><code class="rust">
@@ -396,22 +418,389 @@
     let b = if a > 1 {
         println!("{}", a);    // 5
         let a = 3;
-        println!("{}", a);    // 3
+        println!("{}", a);    // 3 (different "a")
 
         a * 3   // no semicolon - automatically returns the value
     } else {
         5
     };
+
+    // "a" is still '5' here
             </code></pre>
           </section>
-          <section>
+          <section data-transition="slide">
             <h2>Loops</h2>
             <pre><code class="rust">
-    for i in 0..5 {
-        println!("{}", i);
+    for i in 0..5 {}
+
+    let mut i = 0;
+    while i < 10 {
+        i += 2;
+    }
+
+    loop {        // infinite loop
+        i += 2;
+        if i > 20 {
+            break
+        }
+    }
+            </code></pre>
+            <p class="fragment">Sorry, no "do ... while"</p>
+          </section>
+          <section data-transition="slide">
+            <h3>Structures &amp; Enumerations</h3>
+            <pre><code class="rust">
+    struct Unit;    // unit struct (zero-sized type)
+    struct Foo(i32, String);    // Tuple struct
+
+    struct Book {
+        id: usize,    // max size supported by arch
+        name: String,
+    }
+
+    enum Foobar {
+        Id(isize),    // It can hold a type
+        Object { id: usize, name: String },   // struct-like
+        Empty,        // could also be empty
     }
             </code></pre>
           </section>
+          <section data-transition="slide">
+            <h3>Patterns (basic)</h3>
+            <pre><code class="rust">
+    let x = 5;
+    let (a, b) = (5, 10);   // unpack tuples
+
+    match x {   // wayyy cooler than "switch ... case"
+        0 => println!("bummer"),
+        1 | 2 | 3 => println!("okay"),
+        4 ... 10 => {   // could have its own block
+            println!("Nice! Got {}", x);
+        },
+        x @ 11 ... 20 | x @ 51 ... 80 => println!("Wow! ({})", x),
+        _ => (),    // or nothing
+    }
+            </code></pre>
+            <p>If you assumed that this is just for numbers and characters, then you're mistaken.</p>
+          </section>
+          <section data-transition="slide">
+            <h3>Patterns (complex)</h3>
+            <pre><code class="rust">
+    let e = Foobar::Empty;
+    let book = Book { id: 10, name: String::from("Booya") };
+    let Book { id, name } = book;
+
+    if let Foobar::Object { id, name } = e {
+        println!("{}: {}", id, name);
+    }
+
+    match (id, &amp;*name) {
+        (10, "Booya") => println!("Yay!"),
+        (i, b) if b == "Harry Potter" => println!("id: {}", i),
+        // (_, bk) => println!("Got {}", bk),   // uncomment
+    }
+            </code></pre>
+            <p class="fragment">Compiler checks for exhaustive patterns!</p>
+            <code class="fragment rust-error">error: non-exhaustive patterns: `(_, &amp;_)` not covered</code>
+          </section>
+          <section data-transition="slide">
+            <h3>Methods (#1)</h3>
+            <pre><code class="rust">
+    struct Book { id: usize, name: String }
+
+    impl Book {
+        // associated function
+        fn new(id: usize, name: String) -> Book {
+            Book { id, name }
+        }
+
+        fn name(&amp;self) -> &amp;str { &amp;self.name }
+
+        fn id(&amp;self) -> usize { self.id }
+    }
+            </code></pre>
+            <pre><code class="rust">
+    fn main() {
+        let b = Book::new(1, String::from("New Book"));
+        println!("{}: {}", b.id(), b.name());
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Methods (#2)</h3>
+            <pre><code class="rust">
+    struct Book { id: usize, name: String }
+
+    impl Book {
+        fn update_name(&amp;mut self, name: String) {
+            self.name = name;
+        }
+    }
+            </code></pre>
+            <pre><code class="rust">
+    fn main() {
+        let mut b = Book::new(1, String::from("New Book"));
+        b.update_name(String::from("Old book"));
+        println!("{}: {}", b.id(), b.name());
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Generics</h3>
+            <pre><code class="rust">
+    fn take&lt;T&gt;(_value: T) {}    // statically dispatched
+
+    struct Object&lt;T&gt; {    // struct which stores any type
+        id: usize
+        value: T,
+    }
+            </code></pre>
+            <span class="fragment">
+              <p>Useful types</p>
+              <pre><code class="rust">
+    pub enum Option&lt;T&gt; {    // Nullable type in Rust
+        Some(T),
+        None,       // empty enum variant to represent null
+    }
+
+    pub enum Result&lt;T, E&gt; {   // Fallible type in Rust
+        Ok(T),
+        Err(E),   // no throwing or catching, only matching
+    }
+              </code></pre>
+            </span>
+          </section>
+        </section>
+        <section>
+          <section data-transition="slide">
+            <h2>Traits!</h2>
+            <p>(Now, things get interesting!)</p>
+            <span class="fragment">
+              <pre><code class="rust">
+    trait Object {
+        fn id(&amp;self) -> usize;
+        fn name(&amp;self) -> &amp;str;
+
+        fn print(&amp;self) {   // default (overridable)
+            println!("{} (id: {})", self.id(), self.name());
+        }
+    }
+              </code></pre>
+            </span>
+          </section>
+          <section data-transition="slide">
+            <h3>Implementation</h3>
+            <pre><code class="rust">
+    struct Notebook { id: usize, name: String, pages: usize }
+
+    impl Object for Notebook {
+        fn id(&amp;self) -> usize { self.id }
+        fn name(&amp;self) -> &amp;str { &amp;self.name }
+    }
+            </code></pre>
+            <span class="fragment">
+              <p align="right">... one more.</p>
+              <pre><code class="rust">
+    struct Lead { count: usize, thickness: f32 }
+    struct Pencil { id: usize, name: String, lead: Lead }
+
+    impl Object for Pencil {
+        fn id(&amp;self) -> usize { self.id }
+        fn name(&amp;self) -> &amp;str { &amp;self.name }
+    }
+              </code></pre>
+            </span>
+          </section>
+          <section data-transition="slide">
+            <h3>Trait Bounds</h3>
+            <pre><code class="rust">
+    // Generic function
+    fn pretty_print&lt;T&gt;(obj: T) {
+        obj.print()
+    }
+            </code></pre>
+            <code class="fragment rust-error">error: no method named `print` found for type `T` in the current scope</code>
+            <pre class="fragment"><code class="rust">
+    fn pretty_print&lt;T&gt;(obj: T) where T: Object {
+        obj.print()
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Monomorphization (static dispatch)</h3>
+            <pre><code class="rust">
+    fn pretty_print&lt;T&gt;(obj: T) where T: Object {
+        obj.print()
+    }
+
+    let pencil = Pencil {
+      id: 0,
+      name: String::from("Camlin"),
+      lead: Lead { count: 0, thickness: 0.7 },
+    };
+
+    pretty_print(pencil);
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    fn pretty_print_pencil(obj: Pencil) {   // monomorphized
+        obj.print()
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Trait Bounds</h3>
+            <pre><code class="rust">
+    type Container&lt;T&gt; = Vec&lt;T&gt;  // alias
+    struct PencilBox&lt;T, U&gt; {    // ... works for enums and structs
+        pencils: Container&lt;T&gt;,
+        special: Option&lt;U&gt;,
+    }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    trait Gift: Object {    // ... also traits (inheritance)
+        fn has_gift(&amp;self) -> bool;
+    }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    impl&lt;T, U&gt; PencilBox&lt;T, U&gt; where T: Object {
+        fn pencil_count(&amp;self) -> usize {
+            self.pencils.len()
+        }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Use case</h3>
+            <pre><code class="rust">
+    struct Lead { count: usize, thickness: f32 }
+    struct Pencil { id: usize, name: String, lead: Lead }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    use std::ops::Add;
+
+    impl AddAssign&lt;usize&gt; for Lead {
+        fn add_assign(&amp;mut self, count: usize) {
+            self.count += count;
+        }
+    }
+
+    let mut pencil = Pencil {
+      id: 0, name: String::from("Camlin"),
+      lead: Lead { count: 0, thickness: 0.7 },
+    };
+    pencil.lead += 5;     // Yay!
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Iterators</h3>
+            <pre><code class="rust">
+    pub trait Iterator {
+        type Item;
+        fn next(&amp;mut self) -> Option&lt;Self::Item&gt;;
+
+        ...   // all other methods for free
+    }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    let range = (0..10);      // `Range`
+    let sum = range.fold(0, |total, &amp;x| total + x);   // 45
+
+    let vec = (65..91).collect::&lt;Vec&lt;u8&gt;&gt;
+    let iter = vec.into_iter().map(|i| i as char);    // `Map`
+    let s = iter.collect::&lt;String&gt;;
+
+    println!("{}", s);    // ABC...
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Unsafe</h3>
+            <p>Rust *can* segfault</p>
+            <pre class="fragment"><code class="rust">
+    use std::{mem, ptr};
+
+    let mut p: *mut i32 = ptr::null_mut();
+    unsafe {
+        let x = Box::new(5);    // heap allocation
+        ptr::write(p, *x);
+    }   // deallocated
+
+    unsafe {
+        println!("{}", *p);   // uh oh, dangling pointer
+    }
+            </code></pre>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h3>Things I haven't covered...</h3>
+            <ul>
+              <li class="fragment">Closures</li>
+              <li class="fragment">Threads</li>
+              <li class="fragment">Macros</li>
+              <li class="fragment">Plugins</li>
+              <li class="fragment">Futures</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Projects using Rust</h3>
+            <ul>
+              <li><a href="https://github.com/rust-lang/rust/">Rust</a> - Self-hosted compiler</li>
+              <li><a href="https://github.com/servo/servo/">Servo</a> - The parallel browser engine.</li>
+              <li><a href="https://github.com/PistonDevelopers/piston">Piston</a> - Game engine</li>
+              <li><a href="https://github.com/iron/iron">Iron</a>, <a href="https://github.com/nickel-org/nickel.rs/">Nickel</a>, <a href="https://github.com/SergioBenitez/Rocket">Rocket</a> - Web frameworks</li>
+              <li><a href="https://github.com/pingcap/tikv">TikV</a> - Distributed key-value store.</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Ecosystem</h3>
+            <ul>
+              <li class="fragment">
+                <span><a href="https://rustup.rs/">Rustup</a> - Toolchain manager</span>
+                <pre><code>
+    curl https://sh.rustup.rs -sSf | sh
+                </code></pre>
+              </li>
+              <li class="fragment">
+                <span>Cargo - Package manager (ships with rust)</span>
+                <pre><code class="bash">
+    cargo run   # compile and run
+    cargo doc   # generate docs
+                </code></pre>
+              </li>
+              <li class="fragment"><a href="https://crates.io/">crates.io</a> - Package registry</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Resources</h3>
+            <ul>
+              <li>Book - <a href="https://doc.rust-lang.org/book/">https://doc.rust-lang.org/book/</a></li>
+              <li>Standard library - <a href="https://doc.rust-lang.org/std/">https://doc.rust-lang.org/std/</a></li>
+              <li>Rust by example - <a href="https://rustbyexample.com/">https://rustbyexample.com/</a></li>
+              <li>Play Rust - <a href="https://play.rust-lang.org/">https://play.rust-lang.org/</a></li>
+            </ul>
+          </section>
+          <section>
+            <h3>Community</h3>
+            <ul>
+              <li>IRC:
+                <div><a href="irc://irc.mozilla.org#rust">irc://irc.mozilla.org#rust</a>,</div>
+                <div><a href="irc://irc.mozilla.org#rust-beginners">irc://irc.mozilla.org#rust-beginners</a></div>
+              </li>
+              <li>Reddit: <a href="https://reddit.com/r/rust/">https://reddit.com/r/rust/</a></li>
+              <li>Forum: <a href="https://users.rust-lang.org/">https://users.rust-lang.org/</a></li>
+              <li>Blog: <a href="https://blog.rust-lang.org/">https://blog.rust-lang.org/</a></li>
+            </ul>
+          </section>
+          <section>
+            <h2>Try Firefox Quantum!</h2>
+            <img width="40%" src="images/stylo.jpg">
+          </section>
+        </section>
+        <section>
+          <h1>Thanks!</h1>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
         </section>
       </div>
     </div>
@@ -421,7 +810,7 @@
     <script>
 
       Reveal.initialize({
-        controls: false,
+        controls: true,
         progress: true,
         history: true,
         center: true,

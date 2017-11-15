@@ -4,20 +4,35 @@
     box-shadow: none;
 }
 
-div.stamp {
-    position: absolute;
-    right: -5vw; bottom: 22vh;
-    width: 22vw;
-    font-family: "Courier";
-    font-size: 4vw;
-    text-align: center;
-    color: red;
-    border: 2px solid red;
-    border-radius: 10px;
-    transform: rotate(-30deg);
+@media only screen {
+    div.stamp {
+        position: absolute;
+        font-family: "Courier";
+        text-align: center;
+        color: red;
+        transform: rotate(-30deg);
+        border: 2px solid red;
+        border-radius: 10px;
+
+        right: 12vw; bottom: 30vh;
+        width: 70vw;
+        font-size: 14vw;
+    }
+
+    code.rust-error {
+        color: red;
+        font-size: 8vw;
+    }
 }
 
-code.rust-error {
-    color: red;
-    font-size: 2vw;
+@media only screen and (min-width: 700px) {
+    div.stamp {
+        right: -5vw; bottom: 25vh;
+        width: 22vw;
+        font-size: 4vw;
+    }
+
+    code.rust-error {
+        font-size: 2vw;
+    }
 }
