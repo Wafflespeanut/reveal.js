@@ -3,3 +3,21 @@
     border: none;
     box-shadow: none;
 }
+
+div.stamp {
+    position: absolute;
+    right: -5vw; bottom: 22vh;
+    width: 22vw;
+    font-family: "Courier";
+    font-size: 4vw;
+    text-align: center;
+    color: red;
+    border: 2px solid red;
+    border-radius: 10px;
+    transform: rotate(-30deg);
+}
+
+code.rust-error {
+    color: red;
+    font-size: 2vw;
+}

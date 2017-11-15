@@ -47,7 +47,7 @@
               <li class="fragment roll-in">No Garbage Collector!</li>
               <li class="fragment roll-in">Zero-cost abstractions</li>
               <li class="fragment roll-in">Fearless concurrency</li>
-              <li class="fragment roll-in">Strong static typing, generics, type inference, mutability, ...</li>
+              <li class="fragment roll-in">Strong static typing, generics, type inference, mutability, pattern matching, ...</li>
             </ul>
             <br/>
             <p align=right class="fragment roll-in">... and a <strong>lot more!</strong></p>
@@ -55,7 +55,7 @@
           <section>
             <h2>Why Rust?</h2>
           </section>
-          <section>
+          <section data-transition="slide">
             <h3>C/C++ problems: dangling pointers</h3>
             <pre><code class="cpp">
     int *some_dumb_function() {
@@ -69,7 +69,7 @@
     }
             </code></pre>
           </section>
-          <section>
+          <section data-transition="slide">
             <h3>C/C++ problems: Use after free</h3>
             <pre><code class="cpp">
     void *another_dumb_function() {
@@ -79,7 +79,7 @@
     }
             </code></pre>
           </section>
-          <section>
+          <section data-transition="slide">
             <h3>C/C++ problems: Double free</h3>
             <pre><code class="cpp">
     void *another_dumb_function() {
@@ -104,9 +104,14 @@
           <section>
             <h2>Why care?</h2>
             <br/>
-            <p class="fragment">Segfaults! Crashes!</p>
+            <p class="fragment">Segfaults! Crashes! Memory leaks!</p>
             <span class="fragment"><img data-src="images/windows.png" /></span>
             <p class="fragment">From OS and compilers to browser and game engines, C/C++ is <em>almost</em> everywhere!</p>
+          </section>
+          <section data-transition="slide">
+            <h3>Segfaults? What?</h3>
+            <br>
+            <img width="110%" data-src="images/xkcd-pointers.png" />
           </section>
           <section data-transition="slide-in fade-out">
             <h3>Why not use something else?</h3>
@@ -115,8 +120,297 @@
             </span>
           </section>
           <section data-transition="fade-in">
-            <h3>What about new languages?</h3>
+            <h3>Why not use something else?</h3>
             <img width="80%" src="images/new-lang.png">
+          </section>
+          <section>
+            <h3>Existing solutions use GC</h3>
+            <br>
+            <ul>
+              <li class="fragment">Coder creates objects. Computer has to remove them (no explicit <code>malloc</code> or <code>free</code>).</li>
+              <li class="fragment">Tracing GC: It doesn't know <em>when</em> to remove objects. Tracks them periodically.</li>
+              <li class="fragment">RC-based GC: Atomic operation (expensive).</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Not good enough!</h3>
+            <ul>
+              <li class="fragment">More CPU and memory - Intensive care required for real-time applications.</li>
+              <li class="fragment">Less control over objects.</li>
+              <li class="fragment">Limited concurrency - Global Interpreter Lock</li>
+            </ul>
+          </section>
+        </section>
+        <section data-background="images/rust-wall.jpg"></section>
+        <section>
+          <section>
+            <h2>Resource Acquisition Is Initialization</h2>
+            <p class="fragment">(Rust lives and breathes on RAII)</p>
+          </section>
+          <section>
+            <h2>Core foundations</h2>
+            <p>(Good stuff!)</p>
+            <br>
+            <ul>
+              <li class="fragment">Mutability</li>
+              <br>
+              <li class="fragment">Ownership</li>
+              <br>
+              <li class="fragment">Borrowing</li>
+              <br>
+              <li class="fragment">Lifetimes</li>
+              <div class="fragment stamp">COMPILE TIME</div>
+            </ul>
+          </section>
+          <section data-transition="slide">
+            <h3>Mutability</h3>
+            <span class="fragment">
+              <p>(Variables are immutable by default)</p>
+              <pre><code class="rust">
+    let i = 5;
+
+    i = 10;     // NOPE!
+              </code></pre>
+            </span>
+            <code class="fragment rust-error">error: re-assignment of immutable variable `i`</code>
+            <pre class="fragment"><code class="rust">
+    let mut i = 5;  // explicitly mark it as `mut`
+
+    i = 10;   // Okay now!
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Ownership</h3>
+            <span class="fragment">
+              <p>(Bindings have "ownership" on what they're bound to)</p>
+              <pre><code class="rust">
+    struct Book { name: String }
+
+    fn take(_: Book) {}
+
+    fn main() {
+        let book = Book { name: String::from("Robin Hood") };
+        take(book);     // Book taken!
+
+        println!("{}", book.name);    // Ouch! Book gone!
+    }
+              </code></pre>
+            </span>
+            <code class="fragment rust-error">error: use of moved value: `book`</code>
+          </section>
+          <section data-transition="slide">
+            <p>Not everything's moved though!</p>
+            <pre><code class="rust">
+    #[derive(Clone, Copy)]    // mark it as copy
+    struct Foo(i32);
+
+    fn take&lt;T&gt;(_: T) {}       // take anything
+
+    fn main() {
+        let x = 1;
+        take(x);
+        println!("{}", x);    // works
+        let f = Foo(30);
+        let y = f;
+        println!("{}", f.0);  // yep, still works!
+    }
+            </code></pre>
+          <p class="fragment">Types that can be <em>shallow</em> copied aren't moved.</p>
+          </section>
+          <section data-transition="slide">
+            <p>The rest will be moved!</p>
+            <pre><code class="rust">
+    let vector = vec![1, 2, 3];   // vector
+    let stolen = vector;
+    println!("{:?}", vector);     // error: moved!
+
+    let s = "Hello, world!";
+    take(s);
+    println!("{}", s);        // strangely, this works!
+
+    let owned = String::from("Hello, world!");
+    let stolen = owned;
+    println!("{}", owned);    // but, this doesn't!
+            </code></pre>
+          <p class="fragment">But, that's because there are two <em>versions</em> of values.</p>
+          </section>
+          <section data-background-color="black" data-transition="fade">
+            <h3 style="color: white;">"Great! How do you do stuff, then?"</h3>
+            <img width="50%" src="images/house-mock.gif"/>
+          </section>
+          <section data-transition="slide">
+            <p>Well, you use it and give it back!</p>
+            <p>(or, get another copy)</p>
+            <pre><code class="rust">
+    #[derive(Clone)]
+    struct Book { name: String }
+
+    fn take_and_give(book: Book) -> Book { book }
+
+    fn take(book: Book) {}
+
+    fn main() {
+        let book = Book { name: String::from("Robin Hood") };
+        let book = take_and_give(book);
+        take(book.clone());     // clone (get another copy)
+        println!("{}", book.name);    // Yay!
+    }
+            </code></pre>
+            <p class="fragment">Or, (instead of <em>stealing</em>), you could just "borrow" it.</p>
+          </section>
+          <section data-transition="slide">
+            <h3>Borrowing</h3>
+            <span class="fragment">
+              <p>(fancy name for taking references)</p>
+              <pre><code class="rust">
+    struct Book { name: String }
+
+    fn take(book: &amp;Book) {}   // note the function signature
+
+    fn change(book: &amp;Book) {
+        *book = Book { name: String::from("Harry Potter") };
+    }
+
+    fn main() {
+        let book = Book { name: String::from("Robin Hood") };
+        take(&amp;book);    // note the reference
+        change(&amp;book);  // nope!
+    }
+              </code></pre>
+            </span>
+            <code class="fragment rust-error">error: cannot assign to immutable borrowed content `*book`</code>
+          </section>
+          <section data-background-color="black" data-transition="fade">
+            <h3 style="color: white;">"Okay, what if you wanna change stuff?"</h3>
+            <img width="80%" src="images/anderson.jpg"/>
+          </section>
+          <section data-transition="slide">
+            <p>You mark it as <em>mutable!</em></p>
+            <pre><code class="rust">
+    fn read(book: &amp;Book) {
+        println!("{}", book.0);
+    }
+
+    fn exchange(book: &amp;mut Book) {    // mutable reference
+        *book = Book { name: String::from("Harry Potter") };
+    }
+
+    let mut book = Book { name: String::from("Robin Hood") };
+    read(&amp;book);    // "Robin Hood"
+    exchange(&amp;mut book);    // we're allowing the change
+    read(&amp;book);    // "Harry Potter"
+            </code></pre>
+            <p align="right">(... might as well get a new book)</p>
+          </section>
+          <section data-transition="fade-in">
+            <p>Many readers, one writer.</p>
+            <pre><code class="rust">
+    let mut a = vec![1, 2, 3];
+    {
+        let b = &amp;a;   // borrowed
+        a.push(4);    // doesn't work
+    }   // borrow ends here
+            </code></pre>
+            <code class="fragment rust-error">error: cannot borrow `a` as mutable because it is also borrowed as immutable</code>
+            <pre class="fragment"><code class="rust">
+    let mut a = vec![1, 2, 3];
+    {
+        let b = &amp;a;
+        println!("{}", a[0])  // immutable reference
+    }
+    a.push(4);    // we can mutate now
+            </code></pre>
+          </section>
+          <section data-transition="fade-in slide">
+            <p>Many readers, one writer.</p>
+            <pre><code class="rust">
+    let mut a = vec![1, 2, 3];
+    {
+        let b = &amp;mut a;   // mutably borrowed
+        let c = &amp;mut a;   // cannot borrow again!
+    }   // borrow ends here
+            </code></pre>
+            <code class="fragment rust-error">error: cannot borrow `a` as mutable more than once at a time</code>
+            <pre class="fragment"><code class="rust">
+    let mut a = vec![1, 2, 3];
+    {
+        let b = &amp;mut a;
+        b.push(4);    // works (mutable reference)
+    }
+    let c = &amp;mut a;   // works now
+
+    println!("{}", a[0]);   // doesn't work (mutably borrowed)
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Lifetimes</h3>
+            <span class="fragment">
+              <p>(References have lifetimes)</p>
+              <pre><code class="rust">
+    let heap_int = {
+        let five = Box::new(5u8);   // malloc(1)
+        &amp;five   // free() happened
+    };
+
+    // `heap_int` DANGLING??!!
+              </code></pre>
+            </span>
+            <code class="fragment rust-error">error: `five` does not live long enough</code>
+          </section>
+          <section data-transition="slide">
+            <p>Let's try something different...</p>
+            <pre><code class="rust">
+    fn foo<'a, 'b>(s1: &amp;'a str, s2: &amp;'b str) -> &amp;'a str {
+        s2
+    }
+
+    fn main() {
+        let a = "Hello";
+        let b = {
+            let b = "world";
+            foo(a, b)
+        };
+
+        println!("{} {}", a, b);
+    }
+            </code></pre>
+            <code class="fragment rust-error">error: lifetime of reference outlives lifetime of borrowed content...</code>
+          </section>
+        </section>
+        <section>
+          <h2>Questions?</h2>
+          <video autoplay loop="loop">
+            <source data-src="images/mask.mp4" type="video/mp4" />
+          </video>
+        </section>
+        <section>
+          <section>
+            <h1>Basics</h1>
+          </section>
+          <section>
+            <h2>Expression-based</h2>
+            <p>(semicolons have meaning!)</p>
+            <pre><code class="rust">
+    let a = 5;  // variable binding
+
+    let b = if a > 1 {
+        println!("{}", a);    // 5
+        let a = 3;
+        println!("{}", a);    // 3
+
+        a * 3   // no semicolon - automatically returns the value
+    } else {
+        5
+    };
+            </code></pre>
+          </section>
+          <section>
+            <h2>Loops</h2>
+            <pre><code class="rust">
+    for i in 0..5 {
+        println!("{}", i);
+    }
+            </code></pre>
           </section>
         </section>
       </div>
@@ -127,16 +421,15 @@
     <script>
 
       Reveal.initialize({
-        controls: true,
+        controls: false,
         progress: true,
         history: true,
         center: true,
         autoSlideStoppable: false,
         transitionSpeed: 'slow',
         mouseWheel: true,
-
         theme: Reveal.getQueryHash().theme,
-        transition: Reveal.getQueryHash().transition || 'default',
+        transition: 'convex',   // none/fade/slide/convex/concave/zoom
 
         dependencies: [
           { src: '../../lib/js/classList.js', condition: function() { return !document.body.classList; } },
