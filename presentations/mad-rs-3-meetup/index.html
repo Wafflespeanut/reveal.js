@@ -1,0 +1,281 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Fearless concurrency in Rust!</title>
+    <meta name="description" content="January monthly meetup">
+    <meta name="author" content="Wafflespeanut">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="../../css/reveal.css">
+    <link rel="stylesheet" href="../../css/theme/simple.css" id="theme">
+    <link rel="stylesheet" href="../../lib/css/zenburn.css">
+    <link rel="stylesheet" href="../_shared/custom.css">
+    <script>
+      if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = '../../css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+      }
+    </script>
+  </head>
+
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section data-background="../_shared/images/logo.png" data-background-size="12vw" data-background-position="44vw 5vh">
+          <br />
+          <br />
+          <h3>Fearless concurrency in Rust</h3>
+            <pre><code class="rust">
+    fn main() {
+        ::std::thread::spawn(|| {
+            println!("வணக்கம்!");
+        }).join().unwrap();
+    }
+              </code></pre>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+        <section>
+          <section>
+            <h2>Threads</h2>
+            <ul>
+              <li class="fragment roll-in">Native OS threads</li>
+              <ul>
+                <li class="fragment">support naming, parking, sleeping and configurable stack size.</li>
+              </ul>
+              <li class="fragment roll-in">Thou shall pass through thread boundaries.</li>
+              <p class="fragment roll-in" align="right">without <em>data race</em>?</p>
+              <li class="fragment roll-in">Ownership to the rescue!</li>
+            </ul>
+          </section>
+          <section data-transition="slide">
+            <h3><code>move</code> by default</h3>
+            <pre><code class="rust">
+    use std::thread;
+
+    fn main() {
+        let x = String::from("foobar");
+        let handle = thread::spawn(move || {
+            println!("{}", x);    // moved inside
+            x[..3].to_owned()     // returned
+        });
+
+        let x = handle.join().unwrap();
+        println!("{}", x);    // foo
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>References don't live long enough!</h3>
+            <pre><code class="rust">
+    use std::thread;
+
+    fn main() {
+        let x = String::from("foobar");
+        let handle = thread::spawn(|| {   // no `move`
+            println!("{}", x);  // attempts to take reference
+        });
+
+        handle.join().unwrap();
+    }
+            </code></pre>
+            <code class="fragment rust-error">error: closure may outlive the current function, but it borrows `x`, which is owned by the current function</code>
+          </section>
+          <section>
+            <h3>How do we send data across threads?</h3>
+            <h3>How do we share data among threads?</h3>
+            <h3>How do we actually do stuff?</h3>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>Concurrency primitives</h2>
+          </section>
+          <section>
+            <h3>(Prelude)</h3>
+            <h3>Reference counting &amp; interior mutability</h3>
+            <br />
+              <ul>
+                <li class="fragment">Can't always <code>clone</code> around (types can be huge!)</li>
+                <li class="fragment">Can't always mutate when borrowed everywhere.</li>
+                <li class="fragment">Saviors: <code>Rc&lt;T&gt;</code> and <code>RefCell&lt;T&gt;</code> (or <code>Cell&lt;T&gt;</code>)</li>
+              </ul>
+          </section>
+          <section data-transition="slide">
+            <pre><code class="rust">
+    use std::rc::Rc;
+    use std::cell::RefCell;
+
+    struct Node&lt;T&gt; {    // example graph structure
+        data: T,
+        edges: Vec&lt;Rc&lt;RefCell&lt;Node&lt;T&gt;&gt;&gt;&gt;,
+    }
+
+    impl&lt;T&gt; Node&lt;T&gt; {
+        fn last(&amp;self) -> Option&lt;Rc&lt;RefCell&lt;Node&lt;T&gt;&gt;&gt;&gt; {
+            self.edges.last().map(Clone::clone)
+        }
+    }
+            </code></pre>
+            <pre><code class="rust">
+    let root: Rc&lt;RefCell&lt;Node&lt;_&gt;&gt;&gt; = ...;
+    {
+        let mut root = root.borrow_mut();   // immutably borrowed
+        root.edges.push(Node::new(some_value));
+    }
+            </code></pre>
+          </section>
+          <section>
+            <h3>Meet <code>Send</code> and <code>Sync</code></h3>
+            <ul>
+              <li class="fragment"><code>Send</code>: Can be sent safely through thread boundaries.</li>
+              <li class="fragment"><code>Sync</code>: Can be shared across thread boundaries.</li>
+            </ul>
+            <br />
+            <br />
+            <p class="fragment roll-in">Why does it matter?</p>
+            <p class="fragment"><strong>Food for thought:</strong> What if you clone and move <code>Rc&lt;Cell&lt;T&gt;&gt;</code> into a thread?</p>
+          </section>
+          <section>
+            <h3>Atomic reference counting: <code>Arc&lt;T&gt;</code></h3>
+            <ul>
+              <li class="fragment"><code>Rc&lt;T&gt;</code> which can be "sent" to threads.</li>
+            </ul>
+            <pre class="fragment"><code class="rust">
+    use std::sync::Arc;
+    use std::thread;
+
+    fn main() {
+        let value = Arc::new(String::from("foobar"));
+        let handles = (0..4).map(|_| {
+            let arc_value = value.clone();
+            thread::spawn(move || println!("{}", arc_value))
+        }).collect::&lt;Vec&lt;_&gt;&gt;();
+
+        handles.into_iter().map(|h| h.join()).collect::&lt;Vec&lt;_&gt;&gt;();
+    }
+            </code></pre>
+            <p class="fragment">You still can't do <code>Arc&lt;Cell&lt;T&gt;&gt;</code> though!</p>
+          </section>
+          <section>
+            <h3>Mutual exclusion: <code>Mutex&lt;T&gt;</code></h3>
+            <ul>
+              <li class="fragment"><code>RefCell&lt;T&gt;</code> which can be "shared" across threads.</li>
+            </ul>
+            <pre class="fragment"><code class="rust">
+    use std::sync::{Arc, Mutex};
+    use std::thread;
+
+    let value = Arc::new(Mutex::new(String::from("foobar")));
+    let handles = (0..4).map(|_| {
+        let arc_value = value.clone();
+        thread::spawn(move || {
+            let mut guard = arc_value.lock().unwrap();  // blocks
+            println!("{}", *guard);
+            *guard = guard[1..].to_owned();
+        })
+    }).collect::&lt;Vec&lt;_&gt;&gt;();
+
+    handles.into_iter().map(|h| h.join()).collect::&lt;Vec&lt;_&gt;&gt;();
+            </code></pre>
+            <p class="fragment">("poisoned" when thread panics while holding lock)</p>
+          </section>
+          <section>
+            <h3>Read/write lock: <code>RwLock&lt;T&gt;</code></h3>
+            <ul>
+              <li class="fragment">Many readers, one writer.</li>
+              <li class="fragment">... just like many <code>&amp;T</code>, but one <code>&amp;mut T</code></li>
+            </ul>
+            <pre class="fragment"><code class="rust">
+    let value = Arc::new(RwLock::new(String::from("foobar")));
+    let handles = (0..4).map(|i| {
+        let arc_lock = value.clone();
+        thread::spawn(move || {
+            if i % 2 == 0 {
+                let mut guard = arc_lock.write().unwrap();
+                *guard = guard[1..].to_owned();
+            } else {
+                println!("{}", arc_lock.read().unwrap());
+            }
+        })
+    }).collect::&lt;Vec&lt;_&gt;&gt;();
+
+    handles.into_iter().map(|h| h.join()).collect::&lt;Vec&lt;_&gt;&gt;();
+            </code></pre>
+          </section>
+          <section>
+              <h3>Multi-producer single consumer</h3>
+              <pre class="fragment"><code class="rust">
+    let (sender, receiver) = mpsc::channel();     // async
+    let handle = thread::spawn(move || {
+        while let Ok(line) = receiver.recv() {
+            let _string = String::from_utf8_lossy(line);
+            // some expensive computation
+        }
+    });
+              </code></pre>
+              <pre class="fragment"><code class="rust">
+    let mut fd = BufReader::new(File::open("foobar.txt").unwrap());
+    loop {
+        let mut line = vec![];
+        let b = fd.read_until(b'\n', &amp;mut line).unwrap();
+        if b == 0 { break }
+        let _ = sender.send(line);
+    }
+
+    handle.join().unwrap();
+              </code></pre>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>And more!</h2>
+            <ul>
+              <li class="fragment">Atomic types in <code>std::sync::atomic</code></li>
+              <li class="fragment">Barrier (for synchronized start of threads)</li>
+              <li class="fragment">Condvar (for blocking threads)</li>
+              <li class="fragment">Once (for computing stuff only once)</li>
+          </section>
+          <section>
+            <h1>Thanks!</h1>
+            <p>
+              <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+            </p>
+          </section>
+        </section>
+      </div>
+    </div>
+
+    <script src="../../lib/js/head.min.js"></script>
+    <script src="../../js/reveal.js"></script>
+    <script>
+
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        autoSlideStoppable: false,
+        transitionSpeed: 'slow',
+        mouseWheel: true,
+        theme: Reveal.getQueryHash().theme,
+        transition: 'convex',   // none/fade/slide/convex/concave/zoom
+
+        dependencies: [
+          { src: '../../lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: '../../plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+          { src: '../../plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+          { src: '../../plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+        ]
+      });
+    </script>
+  </body>
+</html>
