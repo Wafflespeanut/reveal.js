@@ -23,6 +23,11 @@
         color: red;
         font-size: 8vw;
     }
+
+    input {
+        width: 15%;
+        font-size: 12vw;
+    }
 }
 
 @media only screen and (min-width: 700px) {
@@ -30,6 +35,10 @@
         right: -5vw; bottom: 25vh;
         width: 22vw;
         font-size: 4vw;
+    }
+
+    input {
+        font-size: 2vw;
     }
 
     code.rust-error {
