@@ -16,21 +16,25 @@ function fibo(n, times) {
     return result;
 }
 
-let rustInput = document.getElementById("rustInput");
-rustInput.value = 0;
+let valueInput = document.getElementById("valueInput");
+let loopInput = document.getElementById("loopInput");
+let valueOutput = document.getElementById("valueOutput");
+let timingOutput = document.getElementById("timingOutput");
 
-let rustOutput = document.getElementById("rustOutput");
 document.getElementById("clickRust").addEventListener("click", function() {
-    let n = Number(rustInput.value);
+    let n = Number(valueInput.value);
+    let l = Number(loopInput.value);
     var result = 0;
 
-    console.time(`RS`);
-    result = compute_nth_fibonacci(n, 100000);
-    console.timeEnd(`RS`);
+    let rsStart = performance.now();
+    result = compute_nth_fibonacci(n, l);
+    let rsEnd = performance.now();
 
-    rustOutput.innerHTML = result;
+    valueOutput.innerHTML = result;
 
-    console.time(`JS`);
-    result = fibo(n, 100000);
-    console.timeEnd(`JS`);
+    let jsStart = performance.now();
+    result = fibo(n, l);
+    let jsEnd = performance.now();
+
+    timingOutput.innerHTML = `Rust: ${rsEnd - rsStart}ms. JS: ${jsEnd - jsStart}ms`;
 });
