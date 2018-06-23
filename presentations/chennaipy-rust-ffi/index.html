@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Powering Python with Rust!</title>
+    <meta name="description" content="ChennaiPy advocate">
+    <meta name="author" content="Wafflespeanut">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="../../css/reveal.css">
+    <link rel="stylesheet" href="../../css/theme/simple.css" id="theme">
+    <link rel="stylesheet" href="../../lib/css/zenburn.css">
+    <link rel="stylesheet" href="../shared/custom.css">
+    <script>
+      if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = '../../css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+      }
+    </script>
+  </head>
+
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section data-background="./images/logo.png" data-background-size="18vw" data-background-position="40vw 5vh">
+          <br />
+          <h2>Powering Python with Rust!</h2>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+        <section>
+          <section>
+            <h2>Python is amazing!</h2>
+            <h3 class="fragment">But well...</h3>
+            <p class="fragment">It's not a great choice for heavy computation.</p>
+          </section>
+          <section>
+            <h2>What's heavy computation?</h2>
+            <p class="fragment">Typically anything that's CPU intensive.</p>
+            <p align=left class="fragment">Including (but not limited to):</p>
+            <ul>
+              <li class="fragment">Processing large files</li>
+              <li class="fragment">Hard math (matrix inversion, prime numbers, etc.)</li>
+              <li class="fragment">Cryptography (hashing, encryption, etc.)</li>
+            </ul>
+          </section>
+          <section>
+            <h2>What does Rust offer?</h2>
+            <ul>
+              <li class="fragment roll-in">Systems programming language</li>
+              <li class="fragment roll-in">Performance without compromising safety</li>
+              <li class="fragment roll-in">No Garbage Collector!</li>
+              <li class="fragment roll-in">Zero-cost abstractions</li>
+              <li class="fragment roll-in">Fearless concurrency</li>
+              <li class="fragment roll-in">Strong static typing, generics, type inference, mutability, pattern matching, ...</li>
+            </ul>
+            <br/>
+            <p align=right class="fragment roll-in">... and a <strong>lot more!</strong></p>
+          </section>
+          <section>
+            <h2>Why Rust?</h2>
+            <p align=left class="fragment">To avoid:</p>
+            <ul>
+              <li class="fragment">Dangling pointers</li>
+              <li class="fragment">Use after free and double free</li>
+              <li class="fragment">Out of bounds indexing</li>
+              <li class="fragment">Iterator invalidation</li>
+              <li class="fragment">Null pointer dereference</li>
+              <li class="fragment">Data races in parallelization</li>
+            </ul>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>Live example with text processing</h2>
+          </section>
+          <section>
+            <h1>Thanks!</h1>
+            <p>
+              <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+            </p>
+            <h4>(P.S. We have a meetup group!)</h4>
+          </section>
+        </section>
+      </div>
+    </div>
+
+    <script src="../../lib/js/head.min.js"></script>
+    <script src="../../js/reveal.js"></script>
+    <script>
+
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        autoSlideStoppable: false,
+        transitionSpeed: 'slow',
+        mouseWheel: true,
+        theme: Reveal.getQueryHash().theme,
+        transition: 'convex',   // none/fade/slide/convex/concave/zoom
+
+        dependencies: [
+          { src: '../../lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: '../../plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+          { src: '../../plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+          { src: '../../plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+        ]
+      });
+    </script>
+  </body>
+</html>
