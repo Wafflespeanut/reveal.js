@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>OTP-based auth service in Actix</title>
+    <meta name="description" content="July monthly meetup">
+    <meta name="author" content="wafflespeanut">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="../../css/reveal.css">
+    <link rel="stylesheet" href="../../css/theme/simple.css" id="theme">
+    <link rel="stylesheet" href="../../lib/css/zenburn.css">
+    <link rel="stylesheet" href="../shared/custom.css">
+    <script>
+      if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = '../../css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+      }
+    </script>
+  </head>
+
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section data-background="../shared/images/logo.png" data-background-size="12vw" data-background-position="44vw 5vh">
+          <br />
+          <br />
+          <h3>OTP-based auth service in Actix</h3>
+            <pre><code class="rust">
+    fn main() {
+        server::new(||
+            App::new().resource("/", |r| r.f(|r| "வணக்கம்!"))
+        ).bind("127.0.0.1:8088").unwrap().run();
+    }
+              </code></pre>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+        <section>
+          <section>
+            <h2>Actix Web</h2>
+            <ul>
+              <li class="fragment roll-in">Actor model (stateful actors, async message passing and subscription)</li>
+              <li class="fragment roll-in">Event loop and futures</li>
+              <li class="fragment roll-in">Async HTTP server/client, static assets, middlewares, SSL, multipart, websockets, etc.</li>
+            </ul>
+          </section>
+          <section data-transition="slide">
+            <h3><code>App</code> controller</h3>
+            <pre><code class="rust">
+    // create a controller
+    let app1 = App::new()
+        // attach a middleware
+        .middleware(Logger::default())
+        // Add a responder for path "/foo"
+        .resource("/foo", |r| r.f(|req| HttpResponse::Ok()))
+        // Filter based on method
+        .resource("/bar", |r| r.method(Method::GET)
+                               .f(|req| "booya"))
+            </code></pre>
+            <p class="fragment">with state...</p>
+            <pre class="fragment"><code class="rust">
+    let app2 = App::with_state(s).resource("/", |r| r.f(|req| {
+        let state = req.state();
+        // Do something
+    }))
+            </code>
+          </section>
+          <section data-transition="slide">
+            <h3>Run applications</h3>
+            <pre><code class="rust">
+    fn main() {
+        server::new(|| {
+            vec![
+                app1,
+                app2,
+                // ... and more.
+            ]
+        }).bind("127.0.0.1:8080").unwrap().run();
+    }
+            </code></pre>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h3>Setup: Types &amp; Traits</h3>
+            <pre><code class="rust">
+    #[derive(Debug, Error)]
+    pub enum ServiceError {
+        Io(io::Error),
+        // ... and a few more.
+    }
+
+    pub type ServiceFuture&lt;T&gt;
+        = Box&lt;Future&lt;Item=T, Error=ServiceError&gt;&gt;;
+
+    pub trait SmsSender {
+        fn send_sms(&amp;self, number: &amp;str, message: &amp;str)
+            -> ServiceFuture&lt;()&gt;;
+    }
+            </code></pre>
+          </section>
+          <section>
+            <h3>Setup: Models</h3>
+            <pre><code class="rust">
+    #[derive(Clone, Serialize, Deserialize)]
+    pub struct User {
+        #[serde(rename = "firstName")] pub first_name: String,
+        #[serde(rename = "lastName")] pub last_name: String,
+        pub number: String,
+        #[serde(rename = "createdOn")]
+        pub created_on: Option&lt;DateTime&lt;Utc&gt;&gt;,
+    }
+            </code></pre>
+            <pre><code class="rust">
+    #[derive(Deserialize)]
+    pub struct OneTimePassword {
+        pub code: u32,
+        pub number: String,
+    }
+            </code></pre>
+          </section>
+          <section>
+            <h3>Setup: Calls</h3>
+            <pre><code class="rust">
+    pub struct UsersService {
+        repository: UsersRepository,
+        sms_sender: Option&lt;Box&lt;SmsSender&gt;&gt;,
+    }
+            </code></pre>
+            <pre><code class="rust">
+    impl UsersService {
+        /// Validates and registers the user in the repository.
+        pub fn register_user(&self, mut data: User)
+            -> ServiceFuture&lt;User&gt; { ... }
+
+        /// Authenticate the user using the OTP.
+        pub fn verify_otp(&self, otp: OneTimePassword)
+            -> ServiceFuture&lt;User&gt; { ... }
+    }
+            </code></pre>
+          </section>
+          <section>
+            <h3>Setup: Controller</h3>
+            <pre><code class="rust">
+    let service = Arc::new(UsersService::new());
+    App::with_state(service)
+        .middleware(middleware::Logger::default())
+        .resource("/register", |r| r.method(http::Method::POST)
+                                    .with_async(register_user))
+        .resource("/verify", |r| r.method(http::Method::POST)
+                                  .with_async(verify_otp))
+            </code></pre>
+          </section>
+          <section>
+            <h3>Setup: Routing functions</h3>
+            <pre><code class="rust">
+    fn register_user(req: HttpRequest&lt;Arc&lt;UsersService&gt;&gt;)
+      -> Box&lt;Future&lt;Item = HttpResponse, Error = ActixError&gt;&gt;
+    {
+        let service = req.state().clone();
+        req.from_err().fold(vec![], move |mut body, chunk| {
+            body.extend_from_slice(&chunk); Ok(body)
+        }).and_then(move |body: Vec&lt;u8&gt;| {
+            let user_data = serde_json::from_slice(&body)?;
+            let data_future = service.register_user(user_data)?;
+            let data = // drive `data_future` to completion.
+            Ok(HttpResponse::Ok().json(data))
+        }).responder()
+    }
+            </code></pre>
+          </section>
+        </section>
+        <section>
+          <h1>Thanks!</h1>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <script src="../../lib/js/head.min.js"></script>
+    <script src="../../js/reveal.js"></script>
+    <script>
+
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        autoSlideStoppable: false,
+        transitionSpeed: 'slow',
+        mouseWheel: true,
+        theme: Reveal.getQueryHash().theme,
+        transition: 'convex',   // none/fade/slide/convex/concave/zoom
+
+        dependencies: [
+          { src: '../../lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: '../../plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+          { src: '../../plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+          { src: '../../plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+        ]
+      });
+    </script>
+  </body>
+</html>
