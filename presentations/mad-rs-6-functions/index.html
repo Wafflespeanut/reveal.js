@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Closures &amp; functions in Rust</title>
+    <meta name="description" content="August monthly meetup">
+    <meta name="author" content="wafflespeanut">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="../../css/reveal.css">
+    <link rel="stylesheet" href="../../css/theme/simple.css" id="theme">
+    <link rel="stylesheet" href="../../lib/css/zenburn.css">
+    <link rel="stylesheet" href="../shared/custom.css">
+    <script>
+      if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = '../../css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+      }
+    </script>
+  </head>
+
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section data-background="../shared/images/logo.png" data-background-size="12vw" data-background-position="44vw 5vh">
+          <br />
+          <br />
+          <h3>Closures &amp; functions in Rust</h3>
+            <pre><code class="rust">
+    fn main() {
+        let f = || {
+            println!("வணக்கம்!");
+        };
+
+        f();
+    }
+              </code></pre>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+        <section>
+          <section>
+            <h2>Functions: Basics</h2>
+            <ul>
+              <li class="fragment roll-in">Composed of statements and expressions</li>
+              <li class="fragment roll-in">Implicit return of expression at the end</li>
+              <li class="fragment roll-in">Genericity</li>
+              <li class="fragment roll-in">3 kinds of closures to aid ownership</li>
+            </ul>
+          </section>
+          <section data-transition="slide">
+            <h3>Functions: Intro</h3>
+            <pre class="fragment"><code class="rust">
+    fn print_hello_world() {  // good, ol' useless function...
+        println!("hello world!");
+    }
+            </code></pre>
+            <p class="fragment">args and returns...</p>
+            <pre class="fragment"><code class="rust">
+    use rand::{self, Rng};
+    use rand::distributions::Alphanumeric;
+
+    fn gen_random_string(len: usize) -> String {
+        rand::thread_rng()
+             .sample_iter(&Alphanumeric).take(len).collect()
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Functions: 3 kinds</h3>
+            <ul>
+              <li class="fragment"><code>Fn</code>: immutable capture; doesn't mutate context <h5>(can be called indefinitely)</h5></li>
+              <li class="fragment"><code>FnMut</code>: mutates context<h5>(can be called indefinitely)</h5></li>
+              <li class="fragment"><code>FnOnce</code>: captures (moves) stuff from context <h5>(can be called only <strong>once</strong>)</h5></li>
+            </ul>
+          </section>
+          <section data-transition="slide">
+            <h3><code>Fn</code></h3>
+            <pre class="fragment"><code class="rust">
+    // prints length of a string using the provided counter.
+    fn print_string_len&lt;F&gt;(s: &str, counter: F)
+        where F: Fn(&amp;str) -> usize
+    {
+        println!("Length of {}: {}", s, counter(s));
+    }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    let string = "❤️";
+    let bytes_counter = |s: &str| s.len();
+    let char_counter = |s: &str| s.chars().count();
+
+    print_string_len(string, byte_counter);
+    print_string_len(string, char_counter);
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3><code>FnMut</code></h3>
+            <pre class="fragment"><code class="rust">
+    let mut chars: usize = 0;
+    let mut count_and_print = |s: &str| {
+        chars += s.chars().count();
+        print!("{}", s);
+    };
+
+    count_and_print("Hello");     // assert_eq!(chars, 5);
+    count_and_print(" world!");   // assert_eq!(chars, 12);
+            </code></pre>
+            <ul>
+              <li class="fragment"><code>Fn</code> is a subtrait (implements <code>FnMut</code>)</li>
+              <li class="fragment">Used by <code>Iterator</code> methods</li>
+            </ul>
+          </section>
+          <section data-transition="slide">
+            <h3><code>FnOnce</code></h3>
+            <pre class="fragment"><code class="rust">
+    let (tx, rx) = ::std::sync::mpsc::channel();
+    let expensive_func = move || {
+        for i in 0..5 {
+            let time = ::std::time::Duration::from_millis(1000);
+            ::std::thread::sleep(time);
+            let _ = tx.send(i);   // send every second
+        }
+    };
+
+    ::std::thread::spawn(expensive_func);
+    while let Ok(i) = rx.recv() {
+        println!("Got {}", i);
+    }
+            </code></pre>
+            <ul>
+              <li class="fragment"><code>Fn</code> and <code>FnMut</code> are subtraits (implement <code>FnOnce</code>)</li>
+              <li class="fragment">Used by <code>Future</code> methods</li>
+            </ul>
+          </section>
+        </section>
+        <section>
+          <h1>Thanks!</h1>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <script src="../../lib/js/head.min.js"></script>
+    <script src="../../js/reveal.js"></script>
+    <script>
+
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        autoSlideStoppable: false,
+        transitionSpeed: 'slow',
+        mouseWheel: true,
+        theme: Reveal.getQueryHash().theme,
+        transition: 'convex',   // none/fade/slide/convex/concave/zoom
+
+        dependencies: [
+          { src: '../../lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: '../../plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+          { src: '../../plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+          { src: '../../plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+        ]
+      });
+    </script>
+  </body>
+</html>
