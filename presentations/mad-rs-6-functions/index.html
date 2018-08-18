@@ -139,6 +139,89 @@
           </section>
         </section>
         <section>
+          <section>
+            <h3>Real world example: HTTP client</h3>
+            <h4 class="fragment">(Beware: <strong>complexity</strong>)</h4>
+            <ul>
+              <li class="fragment roll-in"><a href="https://github.com/hyperium/hyper">Hyper</a>: High-performant HTTP lib in Rust.</li>
+              <li class="fragment roll-in"><a href="https://github.com/ctz/rustls/">rustls</a>: Modern TLS lib written in Rust.</li>
+              <li class="fragment roll-in"><a href="https://github.com/ctz/hyper-rustls">hyper-rustls</a>: Rustls integration for hyper (HTTP lib).</li>
+              <li class="fragment roll-in">Alternative for native TLS.</li>
+              <li class="fragment roll-in">Very useful for static builds.</li>
+            </ul>
+          </section>
+          <section>
+            <h3>HTTP client: Types</h3>
+            <pre class="fragment"><code class="rust">
+    use hyper::client::{Client, HttpConnector};
+    use hyper_rustls::HttpsConnector;
+
+    pub type YourClient = Client&lt;HttpsConnector&lt;HttpConnector&gt;&gt;;
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    pub type ClientRequest
+        = Box&lt;Fn(&amp;YourClient) -&gt; YourFuture&lt;()&gt; + Send + 'static&gt;;
+            </code></pre>
+          </section>
+          <section>
+            <h3>HTTP client: Setup</h3>
+            <pre class="fragment"><code class="rust">
+    use futures::{Future, Stream, future};
+    use futures::sync::mpsc::{self, Sender};
+    use tokio_core::reactor::Core;
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    pub fn prepare() -&gt; Sender&lt;ClientRequest&gt; {
+        let (sender, receiver) = mpsc::channel(0);
+        thread::spawn(move || {
+            let mut core = Core::new().unwrap();
+            let connector = HttpsConnector::new(4);
+            let client = Client::builder().build(connector);
+            let listen = receiver.for_each(|call: ClientRequest| {
+                call(&client)
+            });
+            core.run(listen).unwrap();
+        });
+        sender
+    }
+            </code></pre>
+          </section>
+          <section>
+            <h3>HTTP client: Usage</h3>
+            <pre class="fragment"><code class="rust">
+    let req = Request::get("https://www.rust-lang.org")
+                      .body(()).unwrap();
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    let client = ... ;
+    let future = client.request(req).and_then(|resp| {
+        let code = response.status();
+        response.into_body().fold(vec![], |mut body, ref chunk| {
+            body.extend_from_slice(chunk);
+            future::ok(body)
+        }).and_then(|bytes| {
+            println!("code: {}, response: {}", code,
+                     String::from_utf8_lossy(&bytes));
+        })
+    });
+            </code></pre>
+          </section>
+          <section>
+            <h3>HTTP client: Usage</h3>
+            <pre class="fragment"><code class="rust">
+    let f = Box::new(|client: &YourClient| -> YourFuture&lt;()&gt;) {
+        let future = ... ;
+
+        Box::new(future).into()
+    };
+
+    let _ = sender.clone().send(closure).wait().map_err(|e| {
+        // handle queueing error
+    });
+            </code></pre>
+          </section>
+        </section>
+        <section>
           <h1>Thanks!</h1>
           <p>
             <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
