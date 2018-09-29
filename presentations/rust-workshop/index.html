@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Let's work on Rust!</title>
+    <meta name="description" content="An introduction to Rust!">
+    <meta name="author" content="Wafflespeanut">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="../../css/reveal.css">
+    <link rel="stylesheet" href="../../css/theme/simple.css" id="theme">
+    <link rel="stylesheet" href="../../lib/css/zenburn.css">
+    <link rel="stylesheet" href="../shared/custom.css">
+    <script>
+      if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = '../../css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+      }
+    </script>
+  </head>
+
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section data-background="../shared/images/logo.png" data-background-size="12vw" data-background-position="44vw 5vh">
+          <br>
+          <h2>Let's work on Rust!</h2>
+            <pre><code class="rust">
+    fn main() {
+        println!("வணக்கம்!");
+    }
+              </code></pre>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+        <section>
+            <h2><code>whoami</code></h2>
+            <ul class="fragment" data-autoslide="500">
+                <li class="fragment" data-autoslide="500">Full-stack dev (Swift, Rust, Docker, Typescript, etc.)</li>
+                <li class="fragment" data-autoslide="500">{<a href="https://twitter.com/wafflespeanut">twitter</a>, <a href="https://github.com/wafflespeanut">github</a>}::wafflespeanut</li>
+                <li class="fragment" data-autoslide="500">Organizer of <a href="https://meetup.com/mad-rs">Rust Chennai meetup</a></li>
+                <li class="fragment" data-autoslide="500">Contributor to Servo browser engine (2015-2017)</li>
+                <li class="fragment">Now working on a bunch of open-source projects</li>
+            </ul>
+        </section>
+        <section>
+          <section>
+            <h2>Brief introduction</h2>
+            <ul>
+              <span class="fragment roll-in">
+                  <li class="fragment fade-out"><em>Rigorous User-friendly Systems Technology</em></li>
+              </span>
+              <li class="fragment">Not Fe<sub>2</sub>O<sub>3</sub>, but a fungus!</li>
+              <li class="fragment roll-in">Systems programming language</li>
+              <li class="fragment roll-in">Performance without compromising safety</li>
+              <li class="fragment roll-in">No Garbage Collector!</li>
+              <li class="fragment roll-in">Zero-cost abstractions</li>
+              <li class="fragment roll-in">Fearless concurrency</li>
+              <li class="fragment roll-in">Strong static typing, generics, type inference, mutability, pattern matching, ...</li>
+            </ul>
+            <br/>
+            <p align=right class="fragment roll-in">... and a lot more <strong>buzzwords!</strong></p>
+          </section>
+          <section>
+            <h2>Why Rust?</h2>
+            <h3 class="fragment">Let's play with C/C++</h3>
+          </section>
+          <section data-transition="slide">
+            <h3>To wit! <span class="fragment" data-fragment-index="1">Exhibit A</span></h3>
+            <pre class="fragment" data-fragment-index="1"><code class="cpp">
+    int *create_num() {
+      int a = 2;  // assume some random number
+      return &a;
+    }
+
+    void main() {
+      int *raw_ptr = create_num();
+      *raw_ptr = 3;
+    }
+            </code></pre>
+            <code class="fragment">Segmentation fault (core dumped)</code>
+          </section>
+          <section data-transition="slide">
+            <h3>Another?</h3>
+            <pre><code class="cpp">
+    void main() {
+        int *ptr = malloc(sizeof(int));
+        free(ptr);
+
+        // do some stuff
+
+        printf("DEBUG: Pointer value: %d\n", *ptr);
+        free(ptr);
+    }
+            </code></pre>
+            <code class="fragment">double free or corruption (fasttop): 0x000000000201c010</code>
+          </section>
+          <section>
+            <h2>And a lot more!!!</h2>
+            <br/>
+            <ul>
+              <li class="fragment">Out of bounds indexing</li>
+              <li class="fragment">Iterator invalidation</li>
+              <li class="fragment">Null pointer dereference</li>
+              <li class="fragment">Data races in parallelization</li>
+            </ul>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>Why care?</h2>
+            <br/>
+            <p class="fragment">Segfaults! Crashes! Memory leaks!</p>
+            <span class="fragment"><img data-src="../mad-rs-1/images/windows.png" /></span>
+            <p class="fragment">From OS and compilers to browser and game engines, C/C++ is <em>almost</em> everywhere!</p>
+          </section>
+          <section data-transition="slide-in fade-out">
+            <h3>Why not use something else?</h3>
+            <span class="fragment">
+              <img width="80%" src="../mad-rs-1/images/old-lang.png">
+            </span>
+          </section>
+          <section data-transition="fade-in">
+            <h3>Why not use something else?</h3>
+            <img width="80%" src="../mad-rs-1/images/new-lang.png">
+          </section>
+          <section>
+            <h3>Existing solutions use GC</h3>
+            <ul>
+              <li class="fragment">Coder creates objects. Computer removes them.<div>(no explicit "malloc" or "free")</div></li>
+              <li class="fragment">Tracing GC: It doesn't know <em>when</em> to remove objects. Tracks them periodically.</li>
+              <li class="fragment">RC-based GC: Atomic operation (expensive).</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Not good enough!</h3>
+            <ul>
+              <li class="fragment">More CPU and memory - Intensive care required for real-time applications.</li>
+              <li class="fragment">Less control over objects.</li>
+              <li class="fragment">Limited concurrency - Global locking</li>
+            </ul>
+          </section>
+        </section>
+        <section data-background="images/rust-wall.jpg" data-background-opacity="0.2" data-background-color="#000">
+          <h3 align=left color="white"><span class="fragment" data-autoslide="500">Fast</span><span class="fragment" data-autoslide="500">, Reliable</span><span class="fragment" data-autoslide="500">, Productive.</span></h3>
+          <p class="fragment">- Pick three!</p>
+        </section>
+        <section>
+          <section>
+            <h2>Core concepts</h2>
+            <p>(Good stuff!)</p>
+            <br>
+            <ul>
+              <li class="fragment">Mutability</li>
+              <br>
+              <li class="fragment">Ownership</li>
+              <br>
+              <li class="fragment">Borrowing</li>
+              <br>
+              <li class="fragment">Lifetimes</li>
+              <div class="fragment stamp">COMPILE TIME</div>
+            </ul>
+          </section>
+          <section data-transition="slide">
+            <h3>Mutability</h3>
+            <span class="fragment">
+              <p>(Variables are immutable by default)</p>
+              <pre><code class="rust">
+    let i = 5;
+
+    i = 10;     // NOPE!
+              </code></pre>
+            </span>
+            <code class="fragment rust-error">error: re-assignment of immutable variable `i`</code>
+            <pre class="fragment"><code class="rust">
+    let mut i = 5;  // explicitly mark it as `mut`
+
+    i = 10;   // Okay now!
+            </code></pre>
+          </section>
+          <section data-transition="fade">
+            <h2>Ownership</h2>
+            <table class="fragment">
+              <tr>
+                <td><img src="images/book.png" /></td>
+                <td><img style="margin-left: 25%" src="images/chosen.png" /></td>
+              </tr>
+              <tr>
+                <td>
+                  <div align="center">Magic book</div>
+                  <div align="center">(resource)</div>
+                </td>
+                <td>
+                  <div align="center">The Chosen One</div>
+                  <div align="center">(owner)</div>
+                </td>
+              </tr>
+            </table>
+          </section>
+          <section data-transition="fade">
+            <pre class="fragment" data-fragment-index="1"><code class="rust">
+    struct Thing { name: String }
+
+    fn main() {
+        let thor = Thing { name: "Mjolnir".into() };
+    }
+            </code></pre>
+            <img height="400px" style="padding-right: 20%" src="images/thor.png" />
+            <img class="fragment" src="images/one-book.png" />
+          </section>
+          <section data-transition="fade">
+            <pre><code class="rust">
+    let foo = Thing { name: "secrets".into() };
+            </code></pre>
+            <pre class="fragment" data-fragment-index="2"><code class="rust">
+    let bar = foo;
+            </code></pre>
+            <pre class="fragment" data-fragment-index="4"><code class="rust">
+    println!("{}", foo.name);
+            </code></pre>
+            <span class="fragment" data-fragment-index="2"><img height="230px" class="fragment fade-out" data-fragment-index="3" src="images/one-gives.png" /></span>
+            <span class="fragment" data-fragment-index="3"><img height="230px" class="fragment fade-out" data-fragment-index="4" src="images/two-book.png" /></span>
+            <img width="100px" class="fragment" data-fragment-index="4" src="images/one-lost.png" />
+            <div><code class="fragment rust-error">error: use of moved value `foo.name`</code></div>
+          </section>
+        </section>
+        <section>
+          <h2>Questions?</h2>
+          <video autoplay loop="loop">
+            <source data-src="../mad-rs-1/images/mask.mp4" type="video/mp4" />
+          </video>
+        </section>
+        <section>
+          <section>
+            <h3>Projects using Rust</h3>
+            <ul>
+              <li><a href="https://github.com/rust-lang/rust/">Rust</a> - Self-hosted compiler</li>
+              <li><a href="https://github.com/servo/servo/">Servo</a> - The parallel browser engine.</li>
+              <li><a href="https://github.com/PistonDevelopers/piston">Piston</a> - Game engine</li>
+              <li><a href="https://github.com/actix/actix-web">Actix Web</a>, <a href="https://github.com/SergioBenitez/Rocket">Rocket</a> - Web frameworks</li>
+              <li><a href="https://github.com/pingcap/tikv">TikV</a> - Distributed key-value store.</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Ecosystem</h3>
+            <ul>
+              <li class="fragment">
+                <span><a href="https://rustup.rs/">Rustup</a> - Toolchain manager</span>
+                <pre><code>
+    curl https://sh.rustup.rs -sSf | sh
+                </code></pre>
+              </li>
+              <li class="fragment">
+                <span>Cargo - Package manager (ships with rust)</span>
+                <pre><code class="bash">
+    cargo run   # compile and run
+    cargo doc   # generate docs
+                </code></pre>
+              </li>
+              <li class="fragment"><a href="https://crates.io/">crates.io</a> - Package registry</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Resources</h3>
+            <ul>
+              <li>Book - <a href="https://doc.rust-lang.org/book/">https://doc.rust-lang.org/book/</a></li>
+              <li>Standard library - <a href="https://doc.rust-lang.org/std/">https://doc.rust-lang.org/std/</a></li>
+              <li>Rust by example - <a href="https://rustbyexample.com/">https://rustbyexample.com/</a></li>
+              <li>Playground - <a href="https://play.rust-lang.org/">https://play.rust-lang.org/</a></li>
+            </ul>
+          </section>
+          <section>
+            <h3>Community</h3>
+            <ul>
+              <li>IRC:
+                <div><a href="irc://irc.mozilla.org#rust">irc://irc.mozilla.org#rust</a>,</div>
+                <div><a href="irc://irc.mozilla.org#rust-beginners">irc://irc.mozilla.org#rust-beginners</a></div>
+              </li>
+              <li>Reddit: <a href="https://reddit.com/r/rust/">https://reddit.com/r/rust/</a></li>
+              <li>Forum: <a href="https://users.rust-lang.org/">https://users.rust-lang.org/</a></li>
+              <li>Blog: <a href="https://blog.rust-lang.org/">https://blog.rust-lang.org/</a></li>
+            </ul>
+          </section>
+        </section>
+        <section>
+          <h1>Thanks!</h1>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <script src="../../lib/js/head.min.js"></script>
+    <script src="../../js/reveal.js"></script>
+    <script>
+
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        autoSlideStoppable: false,
+        transitionSpeed: 'slow',
+        mouseWheel: true,
+        theme: Reveal.getQueryHash().theme,
+        transition: 'convex',   // none/fade/slide/convex/concave/zoom
+
+        dependencies: [
+          { src: '../../lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: '../../plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+          { src: '../../plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+          { src: '../../plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+        ]
+      });
+    </script>
+  </body>
+</html>
