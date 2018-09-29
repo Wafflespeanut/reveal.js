@@ -354,7 +354,7 @@
             <h3>Borrowing</h3>
             <p class="fragment" data-fragment-index="1">(fancy name for taking references)</p>
             <pre class="fragment" data-fragment-index="1"><code class="rust">
-    fn print_thing(thing; &Thing) {
+    fn print_thing(thing: &amp;Thing) {
         println!("Name: {}", thing.name);
     }
 
@@ -399,7 +399,7 @@
 
     fn main() {
         let foo = Thing { name: "foo".into() };
-        change_thing(&mut foo);   // owner gives mutable ref.
+        change_thing(&amp;mut foo);   // owner gives mutable ref.
         println!("{}", foo.name);   // prints "bar"
     }
             </code></pre>
@@ -414,11 +414,11 @@
           <section data-transition="slide">
             <pre><code class="rust">
     fn take(mut thing: Thing) {   // Note the "mut"
-        thing.name = "bar";
+        thing.name = "bar".into();
     }
 
     fn main() {
-        let foo = Thing { name: "foo" };
+        let foo = Thing { name: "foo".into() };
         take(foo.clone());    // pass the copy
         println!("{}", foo.name);   // prints "foo"
     }
@@ -501,7 +501,9 @@
           <section data-transition="slide">
             <p>Let's try something scary...</p>
             <pre><code class="rust">
-    fn foo<'a, 'b>(s1: &amp;'a str, s2: &amp;'b str) -> &amp;'a str {
+    fn foo&lg;'a, 'b&gt;(s1: &amp;'a str, s2: &amp;'b str) -> &amp;'a str
+        where 'b: 'a
+    {
         s2
     }
 
@@ -550,13 +552,14 @@
           <section data-transition="slide">
             <h3>Loops</h3>
             <pre><code class="rust">
-    for i in 0..5 {}
+    for i in 0..5 { println!("{}", i); }
 
     let mut i = 0;
     while i < 10 {
         i += 2;
     }
-
+            </code></pre>
+            <pre class="fragment"><code class="rust">
     loop {        // infinite loop
         i += 2;
         if i > 20 {
@@ -625,6 +628,40 @@
     }
             </code></pre>
             <code class="fragment rust-error">error: non-exhaustive patterns: `(_, &amp;_)` not covered</code>
+          </section>
+          <section>
+            <h3>Guessing game! (Setup)</h3>
+            <pre><code class="toml">
+    [dependencies]    # Cargo.toml
+    rand = "0.5"
+            </code></pre>
+            <pre><code class="rust">
+    extern crate rand;
+
+    use rand::Rng;
+
+    fn random_uint(range: Range&lt;u32&gt;) -> u32 {
+        let mut rng = rand::thread_rng();
+        rng.gen_range(range.start, range.end)
+    }
+            </code></pre>
+          </section>
+          <section>
+            <h3>Guessing game! (Input)</h3>
+            <pre><code class="rust">
+    fn get_number() -> Option&lt;u32&gt; {
+        let mut line = String::new();
+        let _ = ::std::io::stdin().read_line(&amp;mut line);
+        if line.ends_with('\n') {
+            line.pop();
+            if line.ends_with('\r') {
+                line.pop();
+            }
+        }
+
+        line.parse().ok()
+    }
+            </code></pre>
           </section>
           <section data-transition="slide">
             <h3>Methods (#1)</h3>
@@ -827,7 +864,8 @@
             <pre class="fragment"><code class="rust">
     let range = (0..10);      // `Range`
     let sum = range.fold(0, |total, &amp;x| total + x);   // 45
-
+            </code></pre>
+            <pre class="fragment"><code class="rust">
     let vec = (65..91).collect::&lt;Vec&lt;u8&gt;&gt;
     let iter = vec.into_iter().map(|i| i as char);    // `Map`
     let s = iter.collect::&lt;String&gt;;
