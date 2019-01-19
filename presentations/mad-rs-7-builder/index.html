@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Building API clients in Rust</title>
+    <meta name="description" content="January monthly meetup">
+    <meta name="author" content="wafflespeanut">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="../../css/reveal.css">
+    <link rel="stylesheet" href="../../css/theme/simple.css" id="theme">
+    <link rel="stylesheet" href="../../lib/css/zenburn.css">
+    <link rel="stylesheet" href="../shared/custom.css">
+    <script>
+      if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = '../../css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+      }
+    </script>
+  </head>
+
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section data-background="../shared/images/logo.png" data-background-size="12vw" data-background-position="44vw 5vh">
+          <br />
+          <br />
+          <h3>Building API clients in Rust</h3>
+            <pre><code class="rust">
+    fn main() {
+        let client = ... ;
+        let f = Object::create()
+                       .from_file("/path/to/file")
+                       .with_name("foo")
+                       .using(&client);
+    }
+              </code></pre>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+        <section>
+          <section>
+            <h2>Builder pattern</h2>
+            <ul>
+              <li class="fragment roll-in">Provides encapsulation and control over object construction.</li>
+              <li class="fragment roll-in">With generics, functionalities can be shared.</li>
+              <li class="fragment roll-in">With generics, initialization can be guaranteed.</li>
+            </ul>
+          </section>
+          <section data-transition="slide">
+            <h3>Case study: Azure Resource Group</h3>
+            <pre style="font-size: 1vw" class="fragment"><code class="bash">
+    HOST="https://management.azure.com"
+    SUB_URL="$HOST/subscriptions/$SUBSCRIPTION"
+
+    curl -X PUT -H "Authorization: Bearer $OAUTH_TOKEN" \
+      -H "Content-Type: application/json" -d '{"location": "northeurope"}' \
+      $SUB_URL/resourcegroups/my-group?api-version=2018-11-01
+            </code></pre>
+            <p class="fragment">Good old way...</p>
+            <pre class="fragment"><code class="rust">
+    let client = Client::new("tenant-id", "client-id", "secret")?;
+    let rg = client.create_resource_group("my-subscription",
+                                          "my-group",
+                                          "northeurope")?;
+            </code></pre>
+          </section>
+        </section>
+        <section>
+          <section data-transition="slide">
+            <h3>New way (async)</h3>
+            <pre class="fragment"><code class="rust">
+    use tokio::runtime::current_thread::Runtime;
+
+    let core = Runtime::new()?;
+    let client = Client::new("tenant-id", "client-id", "secret")?;
+
+    let f = ResourceGroup::create("my-group")
+                          .in_location("northeurope")
+                          .for_subscription("my-subscription")
+                          .using(&client);
+    let rg = runtime.block_on(f)?;
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Setup: Builder</h3>
+            <pre class="fragment"><code class="rust">
+    pub struct ResourceGroup {    // everything's optional, meh.
+      group: Option&lt;String&gt;,
+      subscription_id: Option&lt;String&gt;,
+      location: Option&lt;String&gt;,
+    }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    impl ResourceGroup {
+      pub fn create(name: &str) -&gt; Self {
+        ResourceGroup {
+          group: None,
+          subscription: None,
+          location: None,
+        }
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Setup: Adaptors</h3>
+            <pre class="fragment"><code class="rust">
+    impl ResourceGroup {
+      pub fn in_location(mut self, id: &str) -&gt; Self {
+        self.location = Some(id.to_owned());
+        self
+      }
+
+      pub fn for_subscription(mut self, id: &str) -&gt; Self {
+        self.subscription_id = Some(id.to_owned());
+        self
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Setup: Client</h3>
+            <pre class="fragment"><code class="rust">
+    pub struct Client {
+      http: hyper::client::Client&lt;hyper_rustls::HttpsConnector&gt;,
+      /* other stuff */
+    }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    impl Client {
+      pub(crate) fn builder&lt;'a&gt;(&self, m: http::method::Method)
+                               -&gt; ReqBuilder&lt;'a&gt;
+      {
+        ReqBuilder::new(self, m)
+      }
+
+      pub(crate) fn fetch_response&lt;'a&gt;(self: &'a Arc&lt;Self&gt;,
+                                        builder: RequestBuilder)
+        -&gt; impl Future&lt;Item=Vec&lt;u8&gt;, Error=AzError&gt;
+      {
+        /* We'll fill this later */
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Setup: Request builder</h3>
+            <pre class="fragment"><code class="rust">
+    pub(crate) struct ReqBuilder&lt;'a&gt; {
+      pub path: Option&lt;String&gt;,
+      payload: Option&lt;Vec&lt;u8&gt;&gt;,
+      method: http::method::Method,
+      query_params: BTreeMap&lt;String, String&gt;,
+    }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    impl&lt;'a&gt; ReqBuilder&lt;'a&gt; {
+      pub fn param(&mut self, key: &str, value: &str) {
+        self.query_params.insert(key.into(), value.into());
+      }
+
+      pub fn payload_json&lt;T: Serialize&gt;(&mut self, model: &T) {
+        let bytes = serde_json::to_vec(model).unwrap();
+        self.payload.replace(bytes);
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Build HTTP request</h3>
+            <pre class="fragment"><code class="rust">
+    impl&lt;'a&gt; ReqBuilder&lt;'a&gt; {
+      pub fn build_request(mut self) -&gt; Request&lt;Body&gt; {
+        let bytes = self.payload.take().unwrap_or(vec![]));
+        Request::builder()
+          .method(&self.method)
+          .uri(format!("https://management.azure.com/{}{}",
+                        self.path.unwrap_or(String::new()),
+                        /* add query params */)),
+          .body(Body::from(bytes)
+          .unwrap()
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Fetch response</h3>
+            <pre class="fragment"><code class="rust">
+    impl Client {
+      pub(crate) fn fetch_response&lt;'a&gt;(self: &'a Arc&lt;Self&gt;,
+                                        builder: RequestBuilder)
+          -&gt; impl Future&lt;Item=Vec&lt;u8&gt;, Error=AzError&gt;
+      {
+        let f = self.clone().async_fetch_response(builder);
+        tokio_async_await::compat::backward::Compat::new(f)
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Go async!</h3>
+            <pre class="fragment"><code class="rust">
+    impl Client {
+      async fn async_fetch_parts(self: Arc&lt;Self&gt;,
+                                 builder: RequestBuilder)
+          -> AzResult&lt;Vec&lt;u8&gt;&gt;
+      {
+        let req = builder.build_request();
+        let response = await!(self.http.request(req))?;
+
+        let code = response.status().as_u16();
+        let (parts, body) = response.into_parts();
+        /* Parse body as response/error based on code */
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Setup: Consumer</h3>
+            <pre class="fragment"><code class="rust">
+    impl ResourceGroup {
+        pub fn using(self, client: Arc&lt;Client&gt;)
+            -&gt; impl Future&lt;Item=RgResponse, Error=AzError&gt;
+        {
+            let (name, sub, loc) = // get or runtime error ...
+            let mut req_builder = client.builder(Method::PUT);
+            req_builder.path = Self::path(&sub, &name);
+            req_builder.payload_json(json!({ location: &loc }));
+            client.fetch_response(req_builder)
+                  .and_then( /* parse json */ )
+        }
+    }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    impl ResourceGroup {
+        fn path(sub_id: &str, name: &str) -&gt; String {
+            format!("/subscriptions/{}/resourcegroups/{}",
+                    sub_id, name)
+        }
+    }
+            </code></pre>
+          </section>
+        </section>
+        <section>
+          <section data-transition="slide">
+            <h3>Problem #1</h3>
+            <p class="fragment roll-in">We can't use <code>ResourceGroup</code> for anything else!</p>
+            <ul>
+              <li class="fragment roll-in">We could have a <code>ResourceGroupCreate</code> builder object, but then we'll have a great deal of builders and duplicated code!</li>
+              <li class="fragment roll-in">Or... we could utilize generics!</li>
+            </ul>
+          </section>
+          <section data-transition="slide">
+            <p>We use a wrapper struct!</p>
+            <pre class="fragment"><code class="rust">
+    pub struct Wrapper&lt;A, M&gt; {
+      model: M,
+      _action: PhantomData&lt;A&gt;,
+    }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    impl&lt;A, M&gt; Deref for Wrapper&lt;A, M&gt; {
+      type Target = M;
+      fn deref(&self) -&gt; &Self::Target { &self.model }
+    }
+
+    impl&lt;A, M&gt; DerefMut for Wrapper&lt;A, M&gt; {
+      fn deref_mut(&mut self) -&gt; &mut M {
+        &mut self.model
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <p>Don't let the user initialize it directly!</p>
+            <pre class="fragment"><code class="rust">
+    impl&lt;A, M&gt; Wrapper&lt;A, M&gt; {
+      /// Transmute this wrapper into another.
+      pub(crate) fn transmute&lt;B&gt;(self) -&gt; Wrapper&lt;B, M&gt; {
+        Wrapper::from(self.model)
+      }
+    }
+
+    impl&lt;A, M&gt; Wrapper&lt;A, M&gt; {
+      /// Create for the given model.
+      pub(crate) fn from(model: M) -&gt; Wrapper&lt;A, M&gt; {
+        Wrapper { model, _action: PhantomData, }
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>And?</h3>
+            <p class="fragment">Add action markers...</p>
+            <pre class="fragment"><code class="rust">
+    pub struct Create;
+            </code></pre>
+            <p class="fragment">Now, <code>ResourceGroup</code> becomes...</p>
+            <pre class="fragment"><code class="rust">
+    impl ResourceGroup {
+      pub fn create(name: &str) -&gt; Wrapper&lt;Create, ResourceGroup&gt; {
+        Wrapper::from(ResourceGroup {
+          group: Some(name.to_owned()),
+          subscription_id: None,
+          location: None,
+        })
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <p>Action-specific functionaliy...</p>
+            <pre><code class="rust">
+    impl Wrapper&lt;Create, ResourceGroup&gt; {
+      pub fn in_location(mut self, id: &str) -&gt; Self {
+        self.location = Some(id.to_owned());
+        self
+      }
+    }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    impl&lt;A&gt; Wrapper&lt;A, ResourceGroup&gt; {
+      pub fn for_subscription(mut self, id: &str) -&gt; Self {
+        self.subscription_id = Some(id.to_owned());
+        self
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <p>Implement API call for the wrapper...</p>
+            <pre><code class="rust">
+    impl Wrapper&lt;Create, ResourceGroup&gt; {
+      pub fn using(self, client: Arc&lt;Client&gt;)
+            -&gt; impl Future&lt;Item=RgResponse, Error=AzError&gt;
+      {
+        /* impl */
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <h3>Problem #2</h3>
+            <p class="fragment roll-in">How can we guarantee the existence of required properties, like subscription or location?</p>
+          </section>
+          <section data-transition="slide">
+            <h3>More markers!</h3>
+            <pre class="fragment"><code class="rust">
+    pub struct Exists;
+    pub struct Missing;
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    pub struct ResourceGroup&lt;S, L&gt; {
+      group: Option&lt;String&gt;,
+      subscription_id: Option&lt;String&gt;,
+      location: Option&lt;String&gt;,
+
+      sub_status: PhantomData&lt;S&gt;,
+      loc_status: PhantomData&lt;L&gt;,
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <pre><code class="rust">
+    impl ResourceGroup {
+      pub fn create(name: &str)
+        -&gt; Wrapper&lt;Create, ResourceGroup&lt;Missing, Missing&gt;&gt;
+      {
+        Wrapper::from(ResourceGroup {
+          group: Some(name.to_owned()),
+          subscription_id: None,
+          location: None,
+          /* PhantomData fields */
+        })
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <pre><code class="rust">
+    impl&lt;S&gt; Wrapper&lt;Create, ResourceGroup&lt;S, Missing&gt; {
+      // This method is accessible only when location is missing.
+      // Note that the subscription could be at any state.
+      pub fn in_location(mut self, id: &str)
+        -&gt; Wrapper&lt;Create, ResourceGroup&lt;S, Exists&gt;
+      {
+        Wrapper::from(ResourceGroup {
+          group: self.group,
+          subscription_id: None,
+          location: Some(id.into()),
+          /* PhantomData fields */
+        })
+      }
+    }
+            </code></pre>
+          </section>
+          <section data-transition="slide">
+            <p>Allow API call only when everything exists!</p>
+            <pre><code class="rust">
+    impl Wrapper&lt;Create, ResourceGroup&lt;Exists, Exists&gt; {
+      pub fn using(self, client: Arc&lt;Client&gt;)
+            -&gt; impl Future&lt;Item=RgResponse, Error=AzError&gt;
+      {
+        /* impl */
+      }
+    }
+            </code></pre>
+          </section>
+        </section>
+        <section>
+          <h1>Thanks!</h1>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <script src="../../lib/js/head.min.js"></script>
+    <script src="../../js/reveal.js"></script>
+    <script>
+
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        autoSlideStoppable: false,
+        transitionSpeed: 'slow',
+        mouseWheel: true,
+        theme: Reveal.getQueryHash().theme,
+        transition: 'convex',   // none/fade/slide/convex/concave/zoom
+
+        dependencies: [
+          { src: '../../lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: '../../plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+          { src: '../../plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+          { src: '../../plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+        ]
+      });
+    </script>
+  </body>
+</html>
