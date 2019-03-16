@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Rust Macros (part 1)</title>
+    <meta name="description" content="March monthly meetup">
+    <meta name="author" content="wafflespeanut">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="../../css/reveal.css">
+    <link rel="stylesheet" href="../../css/theme/simple.css" id="theme">
+    <link rel="stylesheet" href="../../lib/css/zenburn.css">
+    <link rel="stylesheet" href="../shared/custom.css">
+    <script>
+      if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = '../../css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+      }
+    </script>
+  </head>
+
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section data-background="../shared/images/logo.png" data-background-size="12vw" data-background-position="44vw 5vh">
+          <br />
+          <br />
+          <h3>Rust macros (part 1)</h3>
+            <pre><code class="rust">
+    macro_rules! greet {
+        () => { println!("வணக்கம்!"); };
+    }
+
+    fn main() {
+        greet!();
+    }
+              </code></pre>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+        <section>
+          <section>
+            <h2>Declarative macros</h2>
+            <p style="text-align: left" class="fragment">Pros:</p>
+            <ul>
+              <li class="fragment roll-in">In the first phases of compilation.</li>
+              <li class="fragment roll-in">Variadic function-like.</li>
+              <li class="fragment roll-in"><code>match</code>-like.</li>
+            </ul>
+            <p style="text-align: left" class="fragment">Cons:</p>
+            <ul>
+              <li class="fragment roll-in">Code writing Rust code. Hard to read/maintain.</li>
+              <li class="fragment roll-in">Need to export, import and bring it into scope.</li>
+              <li class="fragment roll-in">Sometimes hard to debug.</li>
+            </ul>
+          </section>
+          <section data-transition="slide">
+            <h3>Example: <code>try!</code></h3>
+            <pre class="fragment"><code class="rust">
+    macro_rules! try {      // NOTE: Superseded by `Try` trait.
+        ($expr:expr) => {
+            match $expr {
+                Ok(v) => v,
+                Err(e) => return Err(e.into()),
+            }
+        };
+    }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    fn main() -> Result<(), YourError> {
+        let mut buf = [0; 10];
+        let fd = try!(File::open("/dev/urandom"));
+        try!(fd.read_exact(&mut buf));
+        Ok(())
+    }
+            </code></pre>
+          </section>
+          <section>
+            <h3>Example: <code>assert_eq!</code></h3>
+            <pre class="fragment"><code class="rust">
+    macro_rules! assert_eq {    // NOTE: different from stdlib
+        ($l:expr, $r:expr) => {
+            if $l != $r {
+                panic!("assertion failed: `(left == right)`
+   left: `{:?}`,
+  right: `{:?}`", $l, $r);
+            }
+        };
+    }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    fn main() {
+        assert_eq!("hello", "hello");
+    }
+            </code></pre>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>Pattern types</h2>
+    <ul>
+      <li><code>stmt</code>: a statement</li>
+      <li><code>pat</code>: a pattern</li>
+      <li><code>expr</code>: an expression</li>
+      <li><code>ty</code>: a type</li>
+      <li><code>ident</code>: an identifier</li>
+      <li><code>tt</code>: a single token tree</li>
+      <li><code>item</code>: an item (function, struct, module, etc.)</li>
+      <li><code>block</code>: a block (of stmts and/or exprs in braces)</li>
+      <li><code>path</code>: a path (e.g. foo, crate::bar::baz)</li>
+      <li><code>meta</code>: stuff inside #[...] and #![...] attributes</li>
+    </ul>
+          </section>
+          <section>
+            <h3>Repetition example: <code>vec![]</code></h3>
+            <pre class="fragment"><code class="rust">
+    macro_rules! vec {    // NOTE: different from stdlib
+        ($e:expr; $n:expr) => {
+            let mut v = Vec::with_capacity($n);
+            v.extend($n, iter::repeat($e).take($n));
+            v
+        };
+        ($($x:expr),*) => (
+            <[_]>::into_vec(Box::new([$($x),*]))
+        );
+    }
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    fn main() {   // capacity is set to exactly what's required.
+        let v1 = vec![0; 5];
+        let v2 = vec![1, 2, 3, 4, 5];
+    }
+            </code></pre>
+          </section>
+          <section>
+            <h2>Let's write one for maps!</h2>
+            <pre class="fragment"><code class="rust">
+    macro_rules! hashmap {
+      { $($key:expr => $value:expr),+ } => {
+          // TODO
+      };
+    }
+            </code></pre>
+          </section>
+          <section>
+            <h3>Debugging</h3>
+            <pre><code class="bash">
+  $ cargo rustc -- -Z unstable-options --pretty=expanded
+            </code></pre>
+          </section>
+        </section>
+        <section>
+          <h1>Thanks!</h1>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+      </div>
+    </div>
+
+    <script src="../../lib/js/head.min.js"></script>
+    <script src="../../js/reveal.js"></script>
+    <script>
+
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        autoSlideStoppable: false,
+        transitionSpeed: 'slow',
+        mouseWheel: true,
+        theme: Reveal.getQueryHash().theme,
+        transition: 'convex',   // none/fade/slide/convex/concave/zoom
+
+        dependencies: [
+          { src: '../../lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: '../../plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+          { src: '../../plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+          { src: '../../plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+        ]
+      });
+    </script>
+  </body>
+</html>
