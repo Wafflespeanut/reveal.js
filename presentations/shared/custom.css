@@ -21,7 +21,7 @@
 
     code.rust-error {
         color: red;
-        font-size: 8vw;
+        font-size: 8.25vw;
     }
 
     input {
@@ -42,6 +42,6 @@
     }
 
     code.rust-error {
-        font-size: 1.5vw;
+        font-size: 1.3vw;
     }
 }

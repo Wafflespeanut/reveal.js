@@ -44,39 +44,945 @@
             </ul>
         </section>
         <section>
-          <p><em>/me convincing <code>rustc</code> that my code is fine...</em></p>
+          <aside class="notes">Even experienced programmers encounter this.</aside>
+          <p><em>/me convincing the compiler that my code is fine...</em></p>
           <video loop="loop" data-autoplay src="media/big-fan.mp4"></video>
+          <p>[Ownership Oriented Programming]</p>
         </section>
         <section>
           <section>
             <h2>Variable bindings</h2>
           </section>
           <section>
-            <p>Python</p>
-            <pre><code class="python" data-trim data-line-numbers="">
-      a = "Hello, world"
-      b = a
-            </code></pre>
-            <p>Javscript</p>
-            <pre><code class="javascript" data-trim data-line-numbers="">
-      let a = "Hello, world";
-      let b = a;
-            </code></pre>
-            <p>Go</p>
-            <pre><code class="go" data-trim data-line-numbers="">
-      a := "Hello, world"
-      b := a
-            </code></pre>
-            <p>Swift</p>
-            <pre><code class="swift" data-trim data-line-numbers="">
-      let a = "Hello, world"
-      let b = a
-            </code></pre>
+            <span>
+              <p>Python</p>
+              <pre><code class="py" data-trim data-line-numbers="">
+        a = [1, 2, 3]
+        b = a
+        print a, b
+              </code></pre>
+            </span>
+            <span class="fragment">
+              <p>Swift</p>
+              <pre><code class="swift" data-trim data-line-numbers="">
+        let a = [1, 2, 3]
+        let b = a
+        print("\(a), \(b)")
+              </code></pre>
+            </span>
           </section>
+          <section>
+            <p>Same thing in Rust?</p>
+            <pre><code class="rust">
+    let a = vec![1, 2, 3];
+    let b = a;
+    println!("{:?}, {:?}", a, b);
+            </code></pre>
+            <code class="fragment rust-error">error[E0382]: borrow of moved value: `a`</code>
+            <aside class="notes">To understand why, see what others do.</aside>
+          </section>
+          <section>
+            <span>
+              <p>Python</p>
+              <pre><code class="py" data-trim data-line-numbers="3">
+        a = [1, 2, 3]
+        b = a
+        b[0] = 5
+              </code></pre>
+            </span>
+            <span>
+              <p>Swift</p>
+              <pre><code class="swift" data-trim data-line-numbers="3">
+        let a = [1, 2, 3]
+        var b = a
+        b[0] = 5
+              </code></pre>
+            </span>
+          </section>
+          <section>
+            <span>
+              <p>Python</p>
+              <pre><code class="py" data-trim data-line-numbers="4">
+        a = [1, 2, 3]
+        b = a
+        b[0] = 5
+        print a is b
+              </code></pre>
+            </span>
+            <span>
+              <p>Swift</p>
+              <pre><code class="swift" data-trim data-line-numbers="4">
+        let a = [1, 2, 3]
+        var b = a
+        b[0] = 5
+        print("\(a == b)")
+              </code></pre>
+            </span>
+          </section>
+          <section>
+            <span>
+              <p>Python</p>
+              <pre><code class="py" data-trim data-line-numbers="4">
+        a = [1, 2, 3]
+        b = a
+        b[0] = 5
+        print a is b      # True (referenced)
+              </code></pre>
+            </span>
+            <span>
+              <p>Swift</p>
+              <pre><code class="swift" data-trim data-line-numbers="4">
+        let a = [1, 2, 3]
+        var b = a
+        b[0] = 5
+        print("\(a == b)")    // false (copied)
+              </code></pre>
+            </span>
+            <aside class="notes">They reference or copy implicitly.</aside>
+          </section>
+          <section>
+            <p><b>Premise:</b> Variables can be <em>used</em> any number of times!</p>
+            <aside class="notes">No restriction! Almost all compilers/interpreters do implicitly. Devs are used to this. Expensive for other types.</aside>
+            <p class="fragment" data-fragment-index="1">But, copying <em>all</em> values <em>all</em> the time is <b>bad</b>.</p>
+            <p class="fragment" data-fragment-index="2">Although...</p>
+            <img class="fragment fade-up" data-fragment-index="2" src="media/ferris-copy.png" />
+          </section>
+          <section>
+            <h3>What about others?</h3>
+            <span class="fragment" data-fragment-index="0">
+              <p style="text-align: left"><em>Destructible</em> values:</p>
+              <ul>
+                <li class="fragment" data-fragment-index="0">may not be safe for <em>bitwise</em> copy.</li>
+                <li class="fragment">may need to cleanup additional resources.</li>
+                <li class="fragment">may move to a different location (in the heap).</li>
+              </ul>
+            </span>
+          </section>
+          <section>
+            <h3>Affine types</h3>
+            <q>Affine types [allow us] to discard a resource [...] - an affine resource <b>can only be used once</b>.</q>
+            <p style="text-align: right"><small>- <a href="https://en.wikipedia.org/wiki/Substructural_type_system#Affine_type_systems">Wikipedia</a></small></p>
+            <aside class="notes">Rust builds upon this. Fits perfectly into the ownership model.</aside>
+          </section>
+          <section>
+            <h3>Rust 👏 doesn't 👏 decide 👏 for you!</h3>
+            <ul>
+              <li class="fragment"><code>Copy</code>: Values that only need <code>memcpy</code></li>
+              <li class="fragment"><code>Clone</code>: Values that need more...</li>
+            </ul>
+            <aside class="notes">First thing learned.</aside>
           </section>
         </section>
         <section>
-          <h1>Thanks!</h1>
+          <section>
+            <h2>Threads</h2>
+          </section>
+          <section>
+            <p>Slightly interesting <em>useless</em> concurrency (Python)</p>
+            <pre><code class="py" data-trim data-line-numbers="">
+            values = [0] * 5
+
+            def doWork():
+                for i in range(len(values)):
+                    for _ in range(50):
+                        values[i] += 1
+            </code></pre>
+            <pre style="visibility: hidden"><code class="py" data-trim data-line-numbers="99">
+            workers = []
+            for i in range(20):
+                workers.append(Thread(target=doWork))
+            </code></pre>
+            <pre style="visibility: hidden"><code class="py" data-trim data-line-numbers="99">
+            for handle in workers:
+                handle.start()
+
+            for handle in workers:
+                handle.join()
+
+            print sum(values)
+            </code></pre>
+          </section>
+          <section>
+            <p>Slightly interesting <em>useless</em> concurrency (Python)</p>
+            <pre><code class="py" data-trim data-line-numbers="99">
+            values = [0] * 5
+
+            def doWork():
+                for i in range(len(values)):
+                    for _ in range(50):
+                        values[i] += 1
+            </code></pre>
+            <pre><code class="py" data-trim data-line-numbers="">
+            workers = []
+            for i in range(20):
+                workers.append(Thread(target=doWork))
+            </code></pre>
+            <pre style="visibility: hidden"><code class="py" data-trim data-line-numbers="99">
+            for handle in workers:
+                handle.start()
+
+            for handle in workers:
+                handle.join()
+
+            print sum(values)
+            </code></pre>
+          </section>
+          <section>
+            <p>Slightly interesting <em>useless</em> concurrency (Python)</p>
+            <pre><code class="py" data-trim data-line-numbers="6">
+            values = [0] * 5
+
+            def doWork():
+                for i in range(len(values)):
+                    for _ in range(50):
+                        values[i] += 1      # Caution!
+            </code></pre>
+            <pre><code class="py" data-trim data-line-numbers="99">
+            workers = []
+            for i in range(20):
+                workers.append(Thread(target=doWork))
+            </code></pre>
+            <pre style="visibility: hidden"><code class="py" data-trim data-line-numbers="99">
+            for handle in workers:
+                handle.start()
+
+            for handle in workers:
+                handle.join()
+
+            print sum(values)
+            </code></pre>
+          </section>
+          <section>
+            <p>Slightly interesting <em>useless</em> concurrency (Python)</p>
+            <pre><code class="py" data-trim data-line-numbers="99">
+            values = [0] * 5
+
+            def doWork():
+                for i in range(len(values)):
+                    for _ in range(50):
+                        values[i] += 1
+            </code></pre>
+            <pre><code class="py" data-trim data-line-numbers="99">
+            workers = []
+            for i in range(20):
+                workers.append(Thread(target=doWork))
+            </code></pre>
+            <pre><code class="py" data-trim data-line-numbers="">
+            for handle in workers:
+                handle.start()
+
+            for handle in workers:
+                handle.join()
+
+            print sum(values)
+            </code></pre>
+          </section>
+          <section>
+            <p>Slightly interesting <em>useless</em> concurrency (Python)</p>
+            <pre><code class="py" data-trim data-line-numbers="99">
+            values = [0] * 5
+
+            def doWork():
+                for i in range(len(values)):
+                    for _ in range(50):
+                        values[i] += 1
+            </code></pre>
+            <pre><code class="py" data-trim data-line-numbers="99">
+            workers = []
+            for i in range(20):
+                workers.append(Thread(target=doWork))
+            </code></pre>
+            <pre><code class="py" data-trim data-line-numbers="7">
+            for handle in workers:
+                handle.start()
+
+            for handle in workers:
+                handle.join()
+
+            print sum(values)   # 4125, 4631, 4875, ... never 5000!
+            </code></pre>
+          </section>
+          <section>
+            <p>Same <em>useless</em> concurrency (Swift)</p>
+            <pre><code class="swift" data-trim data-line-numbers="">
+            var values = Array(repeating: 0, count: 5)
+            func doWork() {
+                for i in 0..&lt;values.count {
+                    for _ in 1...50 {
+                        values[i] += 1
+                    }
+                }
+            }
+            </code></pre>
+            <pre style="visibility: hidden"><code class="swift" data-trim data-line-numbers="99">
+            let group = DispatchGroup()
+            for j in 0..&lt;20 {
+                group.enter()
+                DispatchQueue(label: "q\(j)", qos: .background).async {
+                    doWork()
+                    group.leave()
+                }
+            }
+            </code></pre>
+            <pre style="visibility: hidden"><code class="swift" data-trim data-line-numbers="99">
+            group.wait()
+            print("\(values.reduce(0) { $0 + $1 })")
+            </code></pre>
+          </section>
+          <section>
+            <p>Same <em>useless</em> concurrency (Swift)</p>
+            <pre><code class="swift" data-trim data-line-numbers="99">
+            var values = Array(repeating: 0, count: 5)
+            func doWork() {
+                for i in 0..&lt;values.count {
+                    for _ in 1...50 {
+                        values[i] += 1
+                    }
+                }
+            }
+            </code></pre>
+            <pre><code class="swift" data-trim data-line-numbers="">
+            let group = DispatchGroup()
+            for j in 0..&lt;20 {
+                group.enter()
+                DispatchQueue(label: "q\(j)", qos: .background).async {
+                    doWork()
+                    group.leave()
+                }
+            }
+            </code></pre>
+            <pre style="visibility: hidden"><code class="swift" data-trim data-line-numbers="99">
+            group.wait()
+            print("\(values.reduce(0) { $0 + $1 })")
+            </code></pre>
+          </section>
+          <section>
+            <p>Same <em>useless</em> concurrency (Swift)</p>
+            <pre><code class="swift" data-trim data-line-numbers="99">
+            var values = Array(repeating: 0, count: 5)
+            func doWork() {
+                for i in 0..&lt;values.count {
+                    for _ in 1...50 {
+                        values[i] += 1
+                    }
+                }
+            }
+            </code></pre>
+            <pre><code class="swift" data-trim data-line-numbers="99">
+            let group = DispatchGroup()
+            for j in 0..&lt;20 {
+                group.enter()
+                DispatchQueue(label: "q\(j)", qos: .background).async {
+                    doWork()
+                    group.leave()
+                }
+            }
+            </code></pre>
+            <pre><code class="swift" data-trim data-line-numbers="">
+            group.wait()
+            print("\(values.reduce(0) { $0 + $1 })")
+            </code></pre>
+          </section>
+          <section>
+            <p>Same <em>useless</em> concurrency (Swift)</p>
+            <pre><code class="swift" data-trim data-line-numbers="99">
+            var values = Array(repeating: 0, count: 5)
+            func doWork() {
+                for i in 0..&lt;values.count {
+                    for _ in 1...50 {
+                        values[i] += 1
+                    }
+                }
+            }
+            </code></pre>
+            <pre><code class="swift" data-trim data-line-numbers="99">
+            let group = DispatchGroup()
+            for j in 0..&lt;20 {
+                group.enter()
+                DispatchQueue(label: "q\(j)", qos: .background).async {
+                    doWork()
+                    group.leave()
+                }
+            }
+            </code></pre>
+            <pre><code class="swift" data-trim data-line-numbers="2">
+            group.wait()
+            print("\(values.reduce(0) { $0 + $1 })")    // Similar
+            </code></pre>
+          </section>
+          <section>
+            <h3>What about Rust?</h3>
+          </section>
+          <section>
+            <p>Same <em>useless</em> concurrency (Rust)</p>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            let mut values = vec![0; 5];
+            let do_work = || {
+                for i in 0..values.len() {
+                    for _ in 0..50 {
+                        values[i] += 1;
+                    }
+                }
+            };
+            </code></pre>
+            <pre style="visibility: hidden"><code class="rust" data-trim data-line-numbers="">
+            let mut handles = vec![];
+            for _ in 0..20 {
+                let h = thread::spawn(do_work);
+                handles.push(h);
+            }
+            </code></pre>
+            <pre style="visibility: hidden"><code class="rust" data-trim data-line-numbers="">
+            for h in handles {
+                h.join().unwrap();
+            }
+            </code></pre>
+          </section>
+          <section>
+            <p>Same <em>useless</em> concurrency (Rust)</p>
+            <pre><code class="rust" data-trim data-line-numbers="99">
+            let mut values = vec![0; 5];
+            let do_work = || {
+                for i in 0..values.len() {
+                    for _ in 0..50 {
+                        values[i] += 1;
+                    }
+                }
+            };
+            </code></pre>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            let mut handles = vec![];
+            for _ in 0..20 {
+                let h = thread::spawn(do_work);
+                handles.push(h);
+            }
+            </code></pre>
+            <aside class="notes">Believe me! I wouldn't write this Rust code, but it's not gonna compile anyway.</aside>
+            <pre style="visibility: hidden"><code class="rust" data-trim data-line-numbers="">
+            for h in handles {
+                h.join().unwrap();
+            }
+            </code></pre>
+          </section>
+          <section>
+            <p>Same <em>useless</em> concurrency (Rust)</p>
+            <pre><code class="rust" data-trim data-line-numbers="99">
+            let mut values = vec![0; 5];
+            let do_work = || {
+                for i in 0..values.len() {
+                    for _ in 0..50 {
+                        values[i] += 1;
+                    }
+                }
+            };
+            </code></pre>
+            <pre><code class="rust" data-trim data-line-numbers="99">
+            let mut handles = vec![];
+            for _ in 0..20 {
+                let h = thread::spawn(do_work);
+                handles.push(h);
+            }
+            </code></pre>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            for h in handles {
+                h.join().unwrap();
+            }
+            </code></pre>
+          </section>
+          <section>
+            <code class="rust-error">error[E0373]: closure may outlive the current function, but it borrows `values`, which is owned by the current function</code>
+            <br />
+            <code class="rust-error" style="color: black">note: function requires argument type to outlive `'static`</code>
+          </section>
+          <section>
+            <h3>Rust forces you to think about your decisions</h3>
+            <p class="fragment">Do we wanna <code>Clone</code> our vector?</p>
+            <p style="visibility: hidden">No.</p>
+          </section>
+          <section>
+            <h3>Rust forces you to think about your decisions</h3>
+            <s><p>Do we wanna <code>Clone</code> our vector?</p></s>
+            <p>No, we need <em>writable</em> access in <b>all</b> threads!</p>
+          </section>
+          <section>
+            <h3>Meet concurrency markers</h3>
+            <ul>
+              <li class="fragment"><code>Send</code>: Passing by-value is safe.</li>
+              <li class="fragment"><code>Sync</code>: Passing by-ref is safe.</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Realizations</h3>
+            <ul>
+              <li class="fragment" data-fragment-index="0">
+                <span class="fragment" data-fragment-index="0"><code>&amp;T</code> (and hence <code>&amp;Vec&lt;T&gt;</code> or <code>&amp;[T]</code>)</span><span class="fragment" data-fragment-index="1"> is <b>not</b> <code>'static</code>.</span>
+              </li>
+              <li class="fragment" data-fragment-index="2">
+                <span class="fragment" data-fragment-index="2"><code>Vec&lt;T&gt;</code> is <code>Send</code> + <code>Sync</code> + <code>'static</code></span><span class="fragment" data-fragment-index="3">, but we shouldn't <code>move</code> or <code>Clone</code>.</span>
+              </li>
+              <li class="fragment" data-fragment-index="4">
+                <span class="fragment" data-fragment-index="4"><code>Rc&lt;Vec&lt;T&gt;&gt;</code> is <code>'static</code></span><span class="fragment" data-fragment-index="5">, but <code>!Send</code> (and it only allows <code>&amp;T</code> methods).</span>
+              </li>
+              <li class="fragment" data-fragment-index="6">
+                <span class="fragment" data-fragment-index="6"><code>RefCell&lt;Vec&lt;T&gt;&gt;</code> is <code>Send</code> (allows <code>&amp;mut</code> <code>T</code> calls)</span><span class="fragment" data-fragment-index="7">, but not <code>Sync</code>.</span>
+              </li>
+              <li class="fragment" data-fragment-index="8">
+                <span class="fragment" data-fragment-index="8"><code>Arc&lt;Mutex&lt;Vec&lt;T&gt;&gt;&gt;</code> or <code>Arc&lt;RwLock&lt;Vec&lt;T&gt;&gt;&gt;</code> is what we want.</span>
+              </li>
+            </ul>
+          </section>
+          <section>
+            <p><em>One</em> Rust'ish way</p>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            let mut values = Arc::new(Mutex::new(vec![0; 5]));
+            </code></pre>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            let handles = (0..20).map(|_| {
+                let values = values.clone();
+                thread::spawn(move || {
+                    let mut values = values.lock().expect("AHHHH");
+                    for i in 0..values.len() {
+                        for _ in 0..50 {
+                            values[i] += 1;
+                        }
+                    }
+                })
+            }).collect::&lt;Vec&lt;_&gt;&gt;();
+            </code></pre>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            for h in handles {
+                h.join().unwrap();
+            }
+            </code></pre>
+          </section>
+          <section>
+            <p><em style="font-size: 1.25em">"Rust prevents race conditions?"</em></p>
+          </section>
+          <section>
+            <h3>No, it doesn't!</h3>
+            <p class="fragment">It only forces you to think about it.</p>
+            <aside class="notes">Another thing I like - being simple and expressive about what it does.</aside>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h2>Pointers</h2>
+          </section>
+          <section>
+            <h3>Thought experiment</h3>
+            <em>Ideal</em> newcomer rolls their own CSV-JSON converter
+            <aside class="notes">Instead of hello-world momentary pleasure...</aside>
+          </section>
+          <section>
+            <p>Starts with a search for reading lines from stdin...</p>
+            <img style="border: 1px solid black" src="media/shot-stdin.png" />
+          </section>
+          <section>
+            <p>Splitting strings...</p>
+            <img style="border: 1px solid black" src="media/str-split.png" />
+          </section>
+          <section>
+            <p>So far...</p>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            let stdin = io::stdin();
+            for line in stdin.lock().lines() {
+                let line = line.unwrap().split(",").collect::&lt;Vec&lt;_&gt;&gt;();
+                println!("{}", line);
+            }
+            </code></pre>
+            <code class="fragment rust-error">error[E0277]: `std::vec::Vec&lt;&str&gt;` doesn't implement `std::fmt::Display`</code>
+          </section>
+          <section>
+            <p>After ditching custom <code>Display</code> impl...</p>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            let stdin = io::stdin();
+            for line in stdin.lock().lines() {
+                let line = line.unwrap().split(",").collect::&lt;Vec&lt;_&gt;&gt;();
+                let json = serde_json::to_string(&line).unwrap();
+                println!("{}", line);
+            }
+            </code></pre>
+            <span style="visibility: hidden">
+                <code class="rust-error">error[E0716]: temporary value dropped while borrowed</code><br />
+                <code class="rust-error" style="color: black">note: consider using a `let` binding to create a longer lived value</code>
+            </span>
+          </section>
+          <section>
+            <p>After ditching custom <code>Display</code> impl...</p>
+            <pre><code class="rust" data-trim data-line-numbers="3">
+            let stdin = io::stdin();
+            for line in stdin.lock().lines() {
+                let line = line.unwrap().split(",").collect::&lt;Vec&lt;_&gt;&gt;();
+                let json = serde_json::to_string(&line).unwrap();
+                println!("{}", line);
+            }
+            </code></pre>
+            <code class="rust-error">error[E0716]: temporary value dropped while borrowed</code><br />
+            <code class="rust-error" style="color: black">note: consider using a `let` binding to create a longer lived value</code>
+          </section>
+          <section>
+            <q>Ok fine, <code>rustc</code>!</q>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            let stdin = io::stdin();
+            for line in stdin.lock().lines() {
+                let line = line.unwrap();
+                let line = line.split(",").collect::&lt;Vec&lt;_&gt;&gt;();
+                let json = serde_json::to_string(&line).unwrap();
+                println!("{}", line);
+            }
+            </code></pre>
+            <p class="fragment">It compiles!</p>
+          </section>
+          <section>
+            <p>Speed: 0.5x</p>
+            <ul>
+              <li class="fragment"><code>lock()</code> returns a handle.</li>
+              <li class="fragment">The handle implements <code>BufRead</code>.</li>
+              <li class="fragment"><code>lines()</code> iterator gives <code>io::Result&lt;String&gt;</code></li>
+              <li class="fragment"><code>split()</code> iterator gives <em>references</em>.</li>
+              <li class="fragment"><code>String</code> gets dropped, but <code>&amp;str</code> get collected.</li>
+            </ul>
+            <p class="fragment">Classic use-after-free!</p>
+            <aside class="notes">Things are sooo high-level, this isn't obvious. We see so many features... We just assume it plays along with us.</aside>
+          </section>
+          <section>
+            <p>Fast forward a few hours/days...</p>
+            <span class="fragment">
+              <pre><code class="rust" data-trim data-line-numbers="">
+              struct CsvJsonSorcerer {
+                  handle: /* ... */
+              }
+
+              impl Iterator for CsvJsonSorcerer {
+                  type Item = String;
+
+                  fn next(&amp;mut self) -&gt; Option&lt;Self::Item&gt; {
+                      /* Imma gonna fill this up! */
+                  }
+              }
+              </code></pre>
+              <pre><code class="rust" data-trim data-line-numbers="">
+              fn main() {
+                  let stdin = io::stdin();
+                  let handle = stdin.lock();
+                  for line in CsvJsonSorcerer { handle } {
+                      println!("{}", line);
+                  }
+              }
+              </code></pre>
+            </span>
+          </section>
+          <section>
+            <p>Starts from the beginning...</p>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            struct CsvJsonSorcerer {
+                handle: StdinLock,
+            }
+            </code></pre>
+            <code class="fragment rust-error">error[E0106]: missing lifetime specifier</code>
+          </section>
+          <section>
+            <q>I dunno what this `<code>'a</code>` is, I'll just put it there...</q>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            struct CsvJsonSorcerer {
+                handle: StdinLock&lt;'a&gt;,
+            }
+            </code></pre>
+            <code class="fragment rust-error">error[E0261]: use of undeclared lifetime name `'a`</code>
+          </section>
+          <section>
+            <q>Uhh, okay...</q>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            struct CsvJsonSorcerer&lt;'a&gt; {
+                handle: StdinLock&lt;'a&gt;,
+            }
+            </code></pre>
+            <code style="visibility: hidden" class="rust-error">error</code>
+          </section>
+          <section>
+            <p>Observations</p>
+            <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
+            fn lock(&amp;self) -&gt; StdinLock&lt;&apos;_&gt; { ... }
+            </code></pre>
+            <pre style="visibility: hidden"><code class="rust" data-trim data-line-numbers="">
+            struct StdinLock&lt;&apos;a&gt; {
+                inner: MutexGuard&lt;&apos;a, BufReader&lt;Maybe&lt;StdinRaw&gt;&gt;&gt;,
+            }
+            </code></pre>
+            <pre style="visibility: hidden"><code class="rust" data-trim data-line-numbers="">
+            struct MutexGuard&lt;&apos;a, T: ?Sized + &apos;a&gt; {
+                __lock: &amp;&apos;a Mutex&lt;T&gt;,
+                __poison: poison::Guard,
+            }
+            </code></pre>
+            <pre style="visibility: hidden"><code class="rust" data-trim data-line-numbers="">
+            struct Stdin {
+                inner: Arc&lt;Mutex&lt;BufReader&lt;Maybe&lt;StdinRaw&gt;&gt;&gt;&gt;,
+            }
+            </code></pre>
+          </section>
+          <section>
+            <p>Observations</p>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            fn lock&lt;'a&gt;(&amp;'a self) -&gt; StdinLock&lt;'a&gt; { ... }
+            </code></pre>
+            <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
+            struct StdinLock&lt;&apos;a&gt; {
+                inner: MutexGuard&lt;&apos;a, BufReader&lt;Maybe&lt;StdinRaw&gt;&gt;&gt;,
+            }
+            </code></pre>
+            <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
+            struct MutexGuard&lt;&apos;a, T: ?Sized + &apos;a&gt; {
+                __lock: &amp;&apos;a Mutex&lt;T&gt;,
+                __poison: poison::Guard,
+            }
+            </code></pre>
+            <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
+            struct Stdin {
+                inner: Arc&lt;Mutex&lt;BufReader&lt;Maybe&lt;StdinRaw&gt;&gt;&gt;&gt;,
+            }
+            </code></pre>
+          </section>
+          <section>
+            <p>Observations</p>
+            <pre><code class="rust" data-trim data-line-numbers="99">
+            fn lock&lt;'a&gt;(&amp;'a self) -&gt; StdinLock&lt;'a&gt; { ... }
+            </code></pre>
+            <pre><code class="rust" data-trim data-line-numbers="99">
+            struct StdinLock&lt;&apos;a&gt; {
+                inner: MutexGuard&lt;&apos;a, BufReader&lt;Maybe&lt;StdinRaw&gt;&gt;&gt;,
+            }
+            </code></pre>
+            <pre><code class="rust" data-trim data-line-numbers="2">
+            struct MutexGuard&lt;&apos;a, T: ?Sized + &apos;a&gt; {
+                __lock: &amp;&apos;a Mutex&lt;T&gt;,
+                __poison: poison::Guard,
+            }
+            </code></pre>
+            <pre><code class="rust" data-trim data-line-numbers="2">
+            struct Stdin {
+                inner: Arc&lt;Mutex&lt;BufReader&lt;Maybe&lt;StdinRaw&gt;&gt;&gt;&gt;,
+            }
+            </code></pre>
+          </section>
+          <section>
+            <h3>What happened?</h3>
+            <ul>
+              <li class="fragment"><code>StdinLock</code> <em>borrows</em> <code>Stdin</code>.</li>
+              <li class="fragment">The borrow constrains the owner's move semantics during its <em>lifetime</em> (see <a href="https://doc.rust-lang.org/nomicon/subtyping.html">Variance</a>).</li>
+              <li class="fragment">If we're wrapping over a reference, then we cannot <em>outlive</em> that reference (thereby <em>dangling</em>).</li>
+            </ul>
+          </section>
+          <section>
+            <p>After struggling for a while...</p>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            impl&lt;&apos;a&gt; Iterator for CsvJsonSorcerer&lt;&apos;a&gt; {
+                type Item = String;
+
+                fn next(&amp;mut self) -&gt; Option&lt;Self::Item&gt; {
+                    let mut s = String::new();
+                    match self.handle.read_line(&amp;mut s) {
+                        Ok(0) | Err(_) =&gt; return None,
+                        Ok(_) =&gt; (),
+                    }
+
+                    let values = s.trim_end().split(&apos;,&apos;)
+                        .collect::&lt;Vec&lt;_&gt;&gt;();
+                    serde_json::to_string(&amp;values).ok()
+                }
+            }
+            </code></pre>
+          </section>
+          <section>
+            <p><em>Well, it's still unsatisfactory...</em></p>
+            <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
+            let stdin = io::stdin();
+            let handle = stdin.lock();
+
+            let mut started = false;
+            println!("[");
+            for line in (CsvJsonSorcerer { handle }) {
+                if !started {
+                    started = true;
+                } else {
+                    print!(",\n");
+                }
+
+                print!("{}", line);
+            }
+            println!("\n]");
+            </code></pre>
+          </section>
+          <section>
+            <h3>Improvements</h3>
+            <ul>
+              <li class="fragment">The iterator handles everything!</li>
+              <li class="fragment">The iterator can work on all readers.</li>
+              <li class="fragment">... and all writers.</li>
+            </ul>
+          </section>
+          <section>
+            <p>Fast forward again...</p>
+            <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
+            struct CsvJsonSorcerer&lt;'a, R, W&gt; {
+                reader: &amp;'a mut R,
+                writer: &amp;'a mut W,
+                /* ... */
+            }
+
+            impl&lt;'a, R, W&gt; Iterator for CsvJsonSorcerer&lt;'a, R, W&gt;
+                where R: BufRead, W: Write
+            {
+                type Item = io::Result&lt;()&gt;;
+
+                fn next(&amp;mut self) -&gt; Option&lt;Self::Item&gt; {
+                    /* ... */
+                }
+            }
+            </code></pre>
+          </section>
+          <section>
+            <p><em>The right way...</em></p>
+            <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
+            let (stdin, stdout) = (io::stdin(), io::stdout());
+            let (mut in_fd, mut out_fd) = (stdin.lock(), stdout.lock());
+
+            let iter = CsvJsonSorcerer {
+                reader: &mut in_fd,
+                writer: &mut out_fd,
+                /* ... */
+            };
+
+            iter.for_each(|_| {});
+            </code></pre>
+            </code>
+          </section>
+          <section>
+            <p><em>Bad bad ways...</em></p>
+            <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
+            let stdin = io::stdin();
+            let mut in_fd = stdin.lock();
+            let bytes = vec![];
+
+            let iter = CsvJsonSorcerer {
+                reader: &mut in_fd,
+                writer: &bytes,
+                /* ... */
+            };
+            </code></pre>
+            <code style="visibility: hidden" class="rust-error">error<br/>foo</code>
+          </section>
+          <section>
+            <p><em>Bad bad ways...</em></p>
+            <pre><code class="rust" data-trim data-line-numbers="7">
+            let stdin = io::stdin();
+            let mut in_fd = stdin.lock();
+            let bytes = vec![];
+
+            let iter = CsvJsonSorcerer {
+                reader: &mut in_fd,
+                writer: &bytes,
+                /* ... */
+            };
+            </code></pre>
+            <code class="fragment rust-error">error[E0308]: mismatched types<br />types differ in mutability</code>
+          </section>
+          <section>
+            <p><em>Works again...</em></p>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            let stdin = io::stdin();
+            let mut in_fd = stdin.lock();
+            let mut bytes = vec![];
+
+            let iter = CsvJsonSorcerer {
+                reader: &mut in_fd,
+                writer: &mut bytes,
+                /* ... */
+            };
+            </code></pre>
+          </section>
+          <section>
+            <q>What if I do this?</q>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            let stdin = io::stdin();
+            let mut in_fd = stdin.lock();
+            let mut bytes = vec![];
+
+            let iter = CsvJsonSorcerer {
+                reader: &mut in_fd,
+                writer: &mut bytes,
+                /* ... */
+            };
+
+            mem::drop(bytes);
+            iter.for_each(|_| {});
+            </code></pre>
+            <code class="fragment rust-error">error[E0505]: cannot move out of `bytes` because it is borrowed</code>
+            <p style="visibility: hidden">Another use after free!</p>
+          </section>
+          <section>
+            <q>What if I do this?</q>
+            <pre><code class="rust" data-trim data-line-numbers="7,11">
+            let stdin = io::stdin();
+            let mut in_fd = stdin.lock();
+            let mut bytes = vec![];
+
+            let iter = CsvJsonSorcerer {
+                reader: &mut in_fd,
+                writer: &mut bytes,
+                /* ... */
+            };
+
+            mem::drop(bytes);
+            iter.for_each(|_| {});
+            </code></pre>
+            <code class="rust-error">error[E0505]: cannot move out of `bytes` because it is borrowed</code>
+            <p>Another use after free!</p>
+          </section>
+          <section>
+            <q>And this?</q>
+            <pre><code class="rust" data-trim data-line-numbers="">
+            let stdin = io::stdin();
+            let mut in_fd = stdin.lock();
+            let mut bytes = vec![];
+
+            let iter = CsvJsonSorcerer {
+                reader: &mut in_fd,
+                writer: &mut bytes,
+                /* ... */
+            };
+
+            bytes.push(b'\n');
+            iter.for_each(|_| {});
+            </code></pre>
+            <code class="fragment rust-error">error[E0499]: cannot borrow `bytes` as mutable more than once at a time</code>
+            <p style="visibility: hidden">Another use after free!</p>
+          </section>
+          <section>
+            <q>And this?</q>
+            <pre><code class="rust" data-trim data-line-numbers="7,11">
+            let stdin = io::stdin();
+            let mut in_fd = stdin.lock();
+            let mut bytes = vec![];
+
+            let iter = CsvJsonSorcerer {
+                reader: &mut in_fd,
+                writer: &mut bytes,
+                /* ... */
+            };
+
+            bytes.push(b'\n');
+            iter.for_each(|_| {});
+            </code></pre>
+            <code class="rust-error">error[E0499]: cannot borrow `bytes` as mutable more than once at a time</code>
+            <p><code>Vec</code> may have relocated elsewhere in the heap!</p>
+          </section>
+          <section>
+            <h3>Rust is like an angel sitting at my <s>shoulder</s> computer!</h3>
+          </section>
+        </section>
+        <section>
+          <h2>Thanks!</h2>
           <p>
             <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
           </p>
