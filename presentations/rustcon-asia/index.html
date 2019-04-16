@@ -44,6 +44,9 @@
             </ul>
         </section>
         <section>
+          <h3>Why this talk?</h3>
+        </section>
+        <section>
           <p style="font-size: 1.25em">Folks love Rust!</p>
           <p style="font-size: 0.7em; text-align: right">- Stack Overflow survey 2016-2019</p>
         </section>
@@ -54,8 +57,7 @@
           <p><q>Rust feels like a bunch of Haskell programmers listing their issues with C++.</q></p>
         </section>
         <section>
-          <aside class="notes">Even experienced programmers encounter this.</aside>
-          <p><em>/me convincing the compiler that my code is fine...</em></p>
+          <p><em>/me convincing the borrow checker that my code is fine...</em></p>
           <video loop="loop" data-autoplay src="media/big-fan.mp4"></video>
           <p>[Ownership Oriented Programming]</p>
         </section>
@@ -102,7 +104,6 @@
     println!("{:?}, {:?}", a, b);
             </code></pre>
             <code class="fragment rust-error">error[E0382]: borrow of moved value: `a`</code>
-            <aside class="notes">Probably the first thing encountered, took me some time, started book.</aside>
           </section>
           <section>
             <h3>How I'd thought of memory...</h3>
@@ -176,14 +177,12 @@
         print("\(a == b)")    // false (copied)
               </code></pre>
             </span>
-            <aside class="notes">They reference or copy implicitly.</aside>
           </section>
           <section>
-            <h3>It's better if computers are programmed to not trust programmers</h3>
+            <h3>It's better if computers are programmed to <b>not</b> trust programmers</h3>
           </section>
           <section>
             <p><b>Premise:</b> Variables can be <em>used</em> any number of times!</p>
-            <aside class="notes">No restriction! Almost all compilers/interpreters do implicitly. Devs are used to this. Expensive for other types.</aside>
             <p class="fragment" data-fragment-index="1">But, copying <em>all</em> values <em>all</em> the time is <b>bad</b>.</p>
             <p class="fragment" data-fragment-index="2">Although...</p>
             <img class="fragment fade-up" data-fragment-index="2" src="media/ferris-copy.png" />
@@ -204,11 +203,9 @@
             <q>Affine types [allow us] to discard a resource [...] - an affine resource <b>can only be used once</b>.</q>
             <p style="text-align: right"><small>- <a href="https://en.wikipedia.org/wiki/Substructural_type_system#Affine_type_systems">Wikipedia</a></small></p>
             <p class="fragment"><em>*cough*</em> move semantics <em>*cough*</em></p>
-            <aside class="notes">Rust builds upon this. Fits perfectly into the ownership model.</aside>
           </section>
           <section>
             <h3>Rust 👏 doesn't 👏 decide 👏 for you!</h3>
-            <aside class="notes">It became clear that it doesn't decide. Places everything on the stack unless specified.</aside>
             <ul>
               <li class="fragment"><code>Copy</code>: Values that only need <code>memcpy</code></li>
               <li class="fragment"><code>Clone</code>: Values that need more...</li>
@@ -218,13 +215,11 @@
         <section>
           <section>
             <h2>Pointers</h2>
-            <aside class="notes">The beginning and end of programs...</aside>
             <img src="media/sokka-scared.gif" />
           </section>
           <section>
             <h3>Thought experiment</h3>
-            <p>"Me" as a newcomer, rolling my own CSV-JSON converter</p>
-            <aside class="notes">Instead of hello-world momentary pleasure... Sidenote: I couldn't recall all of my struggles, and this is the best example I could come up with.</aside>
+            <p>"Me" as a newcomer, rolling my own<br />CSV-JSON converter</p>
           </section>
           <section>
             <p>Starts with a search for reading lines from stdin...</p>
@@ -296,7 +291,6 @@
               <li class="fragment"><code>String</code> gets dropped, but <code>&amp;str</code> get collected.</li>
             </ul>
             <p class="fragment">Aha! Classic use-after-free!</p>
-            <aside class="notes">Things are sooo high-level, this isn't obvious. We see so many features (functional iterators)... We just assume it plays along with us.</aside>
           </section>
           <section>
             <p>Fast forward a few more hours/days...</p>
@@ -358,7 +352,6 @@
           </section>
           <section>
             <p>I find ...</p>
-            <aside class="notes">I go on a quest...</aside>
             <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
             struct Stdin {
                 inner: Arc&lt;Mutex&lt;BufReader&lt;Maybe&lt;StdinRaw&gt;&gt;&gt;&gt;,
@@ -433,7 +426,6 @@
           </section>
           <section>
             <p>After struggling for a while...</p>
-            <aside class="notes">I'm pretty sure my code wouldn't be as clean as this, but ...</aside>
             <pre><code class="rust" data-trim data-line-numbers="">
             impl&lt;&apos;a&gt; Iterator for CsvJsonSorcerer&lt;&apos;a&gt; {
                 type Item = String;
@@ -474,7 +466,6 @@
           </section>
           <section>
             <h3>Improvements</h3>
-            <aside class="notes">I'm obsessive, always wanna improve.</aside>
             <ul>
               <li class="fragment">The iterator should handle everything!</li>
               <li class="fragment">The iterator should work on all readers.</li>
@@ -483,7 +474,6 @@
           </section>
           <section>
             <p>Fast forward again...</p>
-            <aside class="notes">Now I like liftimes and generics so much, I'm going for...</aside>
             <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
             struct CsvJsonSorcerer&lt;'a, R, W&gt; {
                 reader: &amp;'a mut R,
@@ -617,7 +607,7 @@
             bytes.push(b'\n');
             iter.for_each(|_| {});
             </code></pre>
-            <code style="visibility: hidden" class="rust-error">error</code>
+            <code style="visibility: hidden" class="rust-error">error<br/>note</code>
             <p style="visibility: hidden">foo</p>
           </section>
           <section>
@@ -636,7 +626,7 @@
             bytes.push(b'\n');
             iter.for_each(|_| {});
             </code></pre>
-            <code class="fragment rust-error">error[E0499]: cannot borrow `bytes` as mutable more than once at a time</code>
+            <code class="fragment rust-error">error[E0499]: cannot borrow `bytes` as mutable<br />more than once at a time</code>
             <p><code>Vec</code> may have relocated elsewhere in the heap!</p>
           </section>
           <section>
@@ -928,7 +918,6 @@
                 handles.push(h);
             }
             </code></pre>
-            <aside class="notes">Believe me! I wouldn't write this Rust code, but it's not gonna compile anyway.</aside>
             <pre style="visibility: hidden"><code class="rust" data-trim data-line-numbers="">
             for h in handles {
                 h.join().unwrap();
@@ -967,7 +956,6 @@
           </section>
           <section>
             <h3>Rust forces you to think about your decisions</h3>
-            <aside class="notes">Asks you to be incredibly specific.</aside>
             <p class="fragment">Do we wanna <code>Clone</code> our vector?</p>
             <p style="visibility: hidden">No.</p>
           </section>
@@ -1001,7 +989,6 @@
               <li class="fragment" data-fragment-index="8">
                 <span class="fragment" data-fragment-index="8"><code>Arc&lt;Mutex&lt;Vec&lt;T&gt;&gt;&gt;</code> or <code>Arc&lt;RwLock&lt;Vec&lt;T&gt;&gt;&gt;</code> is what we want.</span>
               </li>
-            <aside class="notes">There's this endless discovery going on. It all made sense. It teaches you when other languages expect you to know those things.</aside>
             </ul>
           </section>
           <section>
@@ -1034,12 +1021,10 @@
           <section>
             <h3>No, it doesn't!</h3>
             <p class="fragment">It only forces you to think about it.</p>
-            <aside class="notes">Another thing I like - being simple and expressive about what it does.</aside>
           </section>
         </section>
         <section>
           <h3>The last 4 years...</h3>
-          <aside class="notes">"How does this even work? What else do you want from me rustc?" to "Ohhhh that makes perfect sense" moments. Aside from getting into systems, made me think about impact of my decisions (mem, perf, whatever). Now can deduce what rustc will say before it compiles. Community makes you give back.</aside>
         </section>
         <section>
           <q style="font-size: 1.25em">Isn't Rust hard?</q>
