@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <title>RustCon Asia 2019 - How Rust taught me to think about systems</title>
-    <meta name="description" content="An introduction to Rust!">
+    <meta name="description" content="How Rust taught me to think about systems">
     <meta name="author" content="wafflespeanut">
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -74,6 +74,7 @@
         <section>
           <section>
             <h2>Variable bindings</h2>
+            <img src="media/aang-show.webp" />
           </section>
           <section>
             <span>
@@ -101,11 +102,22 @@
     println!("{:?}, {:?}", a, b);
             </code></pre>
             <code class="fragment rust-error">error[E0382]: borrow of moved value: `a`</code>
-            <aside class="notes">Took me some time.</aside>
+            <aside class="notes">Probably the first thing encountered, took me some time, started book.</aside>
           </section>
           <section>
+            <h3>How I'd thought of memory...</h3>
+            <span class="fragment">
+              <img src="media/contiguous-blocks.png" />
+              <div>[Continuous blocks]</div>
+              <br />
+              <img src="media/alloc-blocks.png" />
+              <div>[Allocated blocks]</div>
+            </span>
+          </section>
+          <section>
+            <h3>Stack vs Heap</h3>
             <img src="media/stack-heap.jpg" />
-            <p style="font-size: 0.5em; text-align: right">© <a href="http://jeenalee.com/2016/08/29/move-clone-copy.html">Jeena Lee</a></p>
+            <p style="font-size: 0.5em">© <a href="http://jeenalee.com/2016/08/29/move-clone-copy.html">Jeena Lee</a></p>
           </section>
           <section>
             <span>
@@ -167,6 +179,9 @@
             <aside class="notes">They reference or copy implicitly.</aside>
           </section>
           <section>
+            <h3>It's better if computers are programmed to not trust programmers</h3>
+          </section>
+          <section>
             <p><b>Premise:</b> Variables can be <em>used</em> any number of times!</p>
             <aside class="notes">No restriction! Almost all compilers/interpreters do implicitly. Devs are used to this. Expensive for other types.</aside>
             <p class="fragment" data-fragment-index="1">But, copying <em>all</em> values <em>all</em> the time is <b>bad</b>.</p>
@@ -174,7 +189,7 @@
             <img class="fragment fade-up" data-fragment-index="2" src="media/ferris-copy.png" />
           </section>
           <section>
-            <h3>What about others?</h3>
+            <h3>And others?</h3>
             <span class="fragment" data-fragment-index="0">
               <p style="text-align: left"><em>Destructible</em> values:</p>
               <ul>
@@ -189,15 +204,15 @@
             <q>Affine types [allow us] to discard a resource [...] - an affine resource <b>can only be used once</b>.</q>
             <p style="text-align: right"><small>- <a href="https://en.wikipedia.org/wiki/Substructural_type_system#Affine_type_systems">Wikipedia</a></small></p>
             <p class="fragment"><em>*cough*</em> move semantics <em>*cough*</em></p>
-            <aside class="notes">"use" for Clone types. Rust builds upon this. Fits perfectly into the ownership model.</aside>
+            <aside class="notes">Rust builds upon this. Fits perfectly into the ownership model.</aside>
           </section>
           <section>
             <h3>Rust 👏 doesn't 👏 decide 👏 for you!</h3>
+            <aside class="notes">It became clear that it doesn't decide. Places everything on the stack unless specified.</aside>
             <ul>
               <li class="fragment"><code>Copy</code>: Values that only need <code>memcpy</code></li>
               <li class="fragment"><code>Clone</code>: Values that need more...</li>
             </ul>
-            <aside class="notes">First thing learned.</aside>
           </section>
         </section>
         <section>
@@ -208,8 +223,8 @@
           </section>
           <section>
             <h3>Thought experiment</h3>
-            <em>Ideal</em> newcomer rolls their own CSV-JSON converter
-            <aside class="notes">Instead of hello-world momentary pleasure...</aside>
+            <p>"Me" as a newcomer, rolling my own CSV-JSON converter</p>
+            <aside class="notes">Instead of hello-world momentary pleasure... Sidenote: I couldn't recall all of my struggles, and this is the best example I could come up with.</aside>
           </section>
           <section>
             <p>Starts with a search for reading lines from stdin...</p>
@@ -220,7 +235,7 @@
             <img style="border: 1px solid black" src="media/str-split.png" />
           </section>
           <section>
-            <p>So far...</p>
+            <p>I now have...</p>
             <pre><code class="rust" data-trim data-line-numbers="">
             let stdin = io::stdin();
             for line in stdin.lock().lines() {
@@ -272,7 +287,7 @@
             <p class="fragment">It compiles!</p>
           </section>
           <section>
-            <p>Speed: 0.5x</p>
+            <p>Bashing my head trying to understand...</p>
             <ul>
               <li class="fragment"><code>stdin.lock()</code> returns a handle.</li>
               <li class="fragment">The handle implements <code>BufRead</code>.</li>
@@ -280,11 +295,11 @@
               <li class="fragment"><code>split()</code> iterator gives <em>references</em>.</li>
               <li class="fragment"><code>String</code> gets dropped, but <code>&amp;str</code> get collected.</li>
             </ul>
-            <p class="fragment">Classic use-after-free!</p>
-            <aside class="notes">Things are sooo high-level, this isn't obvious. We see so many features... We just assume it plays along with us.</aside>
+            <p class="fragment">Aha! Classic use-after-free!</p>
+            <aside class="notes">Things are sooo high-level, this isn't obvious. We see so many features (functional iterators)... We just assume it plays along with us.</aside>
           </section>
           <section>
-            <p>Fast forward a few hours/days...</p>
+            <p>Fast forward a few more hours/days...</p>
             <span class="fragment">
               <pre><code class="rust" data-trim data-line-numbers="">
               struct CsvJsonSorcerer {
@@ -295,7 +310,7 @@
                   type Item = String;
 
                   fn next(&amp;mut self) -&gt; Option&lt;Self::Item&gt; {
-                      /* Imma gonna fill this up! */
+                      /* I'mma fill this up! */
                   }
               }
               </code></pre>
@@ -311,7 +326,7 @@
             </span>
           </section>
           <section>
-            <p>Starts from the beginning...</p>
+            <p>From the beginning...</p>
             <pre><code class="rust" data-trim data-line-numbers="">
             struct CsvJsonSorcerer {
                 handle: StdinLock,
@@ -338,7 +353,17 @@
             <code style="visibility: hidden" class="rust-error">error</code>
           </section>
           <section>
-            <p>Observations</p>
+            <p>It works?</p>
+            <img src="media/sokka-shock.gif" />
+          </section>
+          <section>
+            <p>I find ...</p>
+            <aside class="notes">I go on a quest...</aside>
+            <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
+            struct Stdin {
+                inner: Arc&lt;Mutex&lt;BufReader&lt;Maybe&lt;StdinRaw&gt;&gt;&gt;&gt;,
+            }
+            </code></pre>
             <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
             fn lock(&amp;self) -&gt; StdinLock&lt;&apos;_&gt; { ... }
             </code></pre>
@@ -353,14 +378,14 @@
                 __poison: poison::Guard,
             }
             </code></pre>
-            <pre style="visibility: hidden"><code class="rust" data-trim data-line-numbers="">
+          </section>
+          <section>
+            <p>I find ...</p>
+            <pre><code class="rust" data-trim data-line-numbers="">
             struct Stdin {
                 inner: Arc&lt;Mutex&lt;BufReader&lt;Maybe&lt;StdinRaw&gt;&gt;&gt;&gt;,
             }
             </code></pre>
-          </section>
-          <section>
-            <p>Observations</p>
             <pre><code class="rust" data-trim data-line-numbers="">
             fn lock&lt;'a&gt;(&amp;'a self) -&gt; StdinLock&lt;'a&gt; { ... }
             </code></pre>
@@ -375,14 +400,14 @@
                 __poison: poison::Guard,
             }
             </code></pre>
-            <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
+          </section>
+          <section>
+            <p>I find ...</p>
+            <pre><code class="rust" data-trim data-line-numbers="2">
             struct Stdin {
                 inner: Arc&lt;Mutex&lt;BufReader&lt;Maybe&lt;StdinRaw&gt;&gt;&gt;&gt;,
             }
             </code></pre>
-          </section>
-          <section>
-            <p>Observations</p>
             <pre><code class="rust" data-trim data-line-numbers="99">
             fn lock&lt;'a&gt;(&amp;'a self) -&gt; StdinLock&lt;'a&gt; { ... }
             </code></pre>
@@ -397,14 +422,9 @@
                 __poison: poison::Guard,
             }
             </code></pre>
-            <pre><code class="rust" data-trim data-line-numbers="2">
-            struct Stdin {
-                inner: Arc&lt;Mutex&lt;BufReader&lt;Maybe&lt;StdinRaw&gt;&gt;&gt;&gt;,
-            }
-            </code></pre>
           </section>
           <section>
-            <h3>What happened?</h3>
+            <p>I realize ...</p>
             <ul>
               <li class="fragment"><code>StdinLock</code> <em>borrows</em> <code>Stdin</code>.</li>
               <li class="fragment">The borrow constrains the owner's move semantics during its <em>lifetime</em>.</li>
@@ -413,6 +433,7 @@
           </section>
           <section>
             <p>After struggling for a while...</p>
+            <aside class="notes">I'm pretty sure my code wouldn't be as clean as this, but ...</aside>
             <pre><code class="rust" data-trim data-line-numbers="">
             impl&lt;&apos;a&gt; Iterator for CsvJsonSorcerer&lt;&apos;a&gt; {
                 type Item = String;
@@ -432,8 +453,7 @@
             </code></pre>
           </section>
           <section>
-            <p><em>Well, it's still unsatisfactory...</em></p>
-            <aside class="notes">Clearly, the newcomer is an obsessive developer, wants to improve it.</aside>
+            <p>Well, it's still unsatisfactory...</p>
             <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
             let stdin = io::stdin();
             let handle = stdin.lock();
@@ -454,14 +474,16 @@
           </section>
           <section>
             <h3>Improvements</h3>
+            <aside class="notes">I'm obsessive, always wanna improve.</aside>
             <ul>
-              <li class="fragment">The iterator handles everything!</li>
-              <li class="fragment">The iterator can work on all readers.</li>
-              <li class="fragment">... and all writers.</li>
+              <li class="fragment">The iterator should handle everything!</li>
+              <li class="fragment">The iterator should work on all readers.</li>
+              <li class="fragment">... and writers.</li>
             </ul>
           </section>
           <section>
             <p>Fast forward again...</p>
+            <aside class="notes">Now I like liftimes and generics so much, I'm going for...</aside>
             <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
             struct CsvJsonSorcerer&lt;'a, R, W&gt; {
                 reader: &amp;'a mut R,
@@ -481,7 +503,7 @@
             </code></pre>
           </section>
           <section>
-            <p><em>The right way...</em></p>
+            <p>The right way...</p>
             <pre class="fragment"><code class="rust" data-trim data-line-numbers="">
             let (stdin, stdout) = (io::stdin(), io::stdout());
             let (mut in_fd, mut out_fd) = (stdin.lock(), stdout.lock());
@@ -527,8 +549,8 @@
             <code class="fragment rust-error">error[E0308]: mismatched types<br />types differ in mutability</code>
           </section>
           <section>
-            <p><em>Works again...</em></p>
-            <pre><code class="rust" data-trim data-line-numbers="">
+            <p>Works again...</p>
+            <pre><code class="rust" data-trim data-line-numbers="7">
             let stdin = io::stdin();
             let mut in_fd = stdin.lock();
             let mut bytes = vec![];
@@ -539,6 +561,7 @@
                 /* ... */
             };
             </code></pre>
+            <code style="visibility: hidden" class="rust-error">error<br />types</code>
           </section>
           <section>
             <q>What if I do this?</q>
@@ -617,12 +640,13 @@
             <p><code>Vec</code> may have relocated elsewhere in the heap!</p>
           </section>
           <section>
-            <h3>Rust is like an angel sitting at my <s>shoulder</s> computer!</h3>
+            <h3>Rust is like an angel sitting in my <s>shoulder</s> computer!</h3>
           </section>
         </section>
         <section>
           <section>
             <h2>Threads</h2>
+            <img src="media/aang-avatar.gif" />
           </section>
           <section>
             <p>Concurrency example (Python)</p>
@@ -977,6 +1001,7 @@
               <li class="fragment" data-fragment-index="8">
                 <span class="fragment" data-fragment-index="8"><code>Arc&lt;Mutex&lt;Vec&lt;T&gt;&gt;&gt;</code> or <code>Arc&lt;RwLock&lt;Vec&lt;T&gt;&gt;&gt;</code> is what we want.</span>
               </li>
+            <aside class="notes">There's this endless discovery going on. It all made sense. It teaches you when other languages expect you to know those things.</aside>
             </ul>
           </section>
           <section>
@@ -1014,7 +1039,7 @@
         </section>
         <section>
           <h3>The last 4 years...</h3>
-          <aside class="notes"></aside>
+          <aside class="notes">"How does this even work? What else do you want from me rustc?" to "Ohhhh that makes perfect sense" moments. Aside from getting into systems, made me think about impact of my decisions (mem, perf, whatever). Now can deduce what rustc will say before it compiles. Community makes you give back.</aside>
         </section>
         <section>
           <q style="font-size: 1.25em">Isn't Rust hard?</q>
