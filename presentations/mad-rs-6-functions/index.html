@@ -118,105 +118,72 @@
           <section data-transition="slide">
             <h3><code>FnOnce</code></h3>
             <pre class="fragment"><code class="rust">
-    let (tx, rx) = ::std::sync::mpsc::channel();
+    let (tx, rx) = std::sync::mpsc::channel();
     let expensive_func = move || {
         for i in 0..5 {
-            let time = ::std::time::Duration::from_millis(1000);
-            ::std::thread::sleep(time);
+            let time = std::time::Duration::from_millis(1000);
+            std::thread::sleep(time);
             let _ = tx.send(i);   // send every second
         }
     };
 
-    ::std::thread::spawn(expensive_func);
+    std::thread::spawn(expensive_func);
     while let Ok(i) = rx.recv() {
         println!("Got {}", i);
     }
             </code></pre>
             <ul>
               <li class="fragment"><code>Fn</code> and <code>FnMut</code> are subtraits (implement <code>FnOnce</code>)</li>
-              <li class="fragment">Used by <code>Future</code> methods</li>
+              <li class="fragment">Used by (old) <code>Future</code> methods</li>
             </ul>
           </section>
         </section>
         <section>
           <section>
             <h3>Real world example: HTTP client</h3>
-            <h4 class="fragment">(Beware: <strong>complexity</strong>)</h4>
             <ul>
-              <li class="fragment roll-in"><a href="https://github.com/hyperium/hyper">Hyper</a>: High-performant HTTP lib in Rust.</li>
-              <li class="fragment roll-in"><a href="https://github.com/ctz/rustls/">rustls</a>: Modern TLS lib written in Rust.</li>
-              <li class="fragment roll-in"><a href="https://github.com/ctz/hyper-rustls">hyper-rustls</a>: Rustls integration for hyper (HTTP lib).</li>
-              <li class="fragment roll-in">Alternative for native TLS.</li>
-              <li class="fragment roll-in">Very useful for static builds.</li>
+              <li class="fragment roll-in"><a href="https://github.com/seanmonstar/reqwest">reqwest</a>: High-performant HTTP client lib in Rust.</li>
+              <li class="fragment roll-in">Similar to python module.</li>
+              <li class="fragment roll-in">Offers TLS through system native / pure Rust / openssl backends.</li>
+              <li class="fragment roll-in">Supports plain text, JSON, urlencoded, multipart, cookies, etc.</li>
             </ul>
           </section>
           <section>
-            <h3>HTTP client: Types</h3>
+            <h3>HTTP client (sync)</h3>
             <pre class="fragment"><code class="rust">
-    use hyper::client::{Client, HttpConnector};
-    use hyper_rustls::HttpsConnector;
+    use reqwest::Client;
 
-    pub type YourClient = Client&lt;HttpsConnector&lt;HttpConnector&gt;&gt;;
+    let client = Client::new();
+    let r = client
+        .get("https://www.rust-lang.org")
+        .send();
             </code></pre>
             <pre class="fragment"><code class="rust">
-    pub type ClientRequest
-        = Box&lt;Fn(&amp;YourClient) -&gt; YourFuture&lt;()&gt; + Send + 'static&gt;;
-            </code></pre>
-          </section>
-          <section>
-            <h3>HTTP client: Setup</h3>
-            <pre class="fragment"><code class="rust">
-    use futures::{Future, Stream, future};
-    use futures::sync::mpsc::{self, Sender};
-    use tokio_core::reactor::Core;
-            </code></pre>
-            <pre class="fragment"><code class="rust">
-    pub fn prepare() -&gt; Sender&lt;ClientRequest&gt; {
-        let (sender, receiver) = mpsc::channel(0);
-        thread::spawn(move || {
-            let mut core = Core::new().unwrap();
-            let connector = HttpsConnector::new(4);
-            let client = Client::builder().build(connector);
-            let listen = receiver.for_each(|call: ClientRequest| {
-                call(&client)
-            });
-            core.run(listen).unwrap();
-        });
-        sender
-    }
-            </code></pre>
-          </section>
-          <section>
-            <h3>HTTP client: Usage</h3>
-            <pre class="fragment"><code class="rust">
-    let req = Request::get("https://www.rust-lang.org")
-                      .body(()).unwrap();
-            </code></pre>
-            <pre class="fragment"><code class="rust">
-    let client = ... ;
-    let future = client.request(req).and_then(|resp| {
-        let code = response.status();
-        response.into_body().fold(vec![], |mut body, ref chunk| {
-            body.extend_from_slice(chunk);
-            future::ok(body)
-        }).and_then(|bytes| {
-            println!("code: {}, response: {}", code,
-                     String::from_utf8_lossy(&bytes));
-        })
+    r.and_then(|mut resp| {
+        assert!(resp.status().as_u16(), 200);
+        resp.text()
+    }).and_then(|s| {
+        println!("{}", s);
     });
             </code></pre>
           </section>
           <section>
-            <h3>HTTP client: Usage</h3>
+            <h3>HTTP client (async)</h3>
             <pre class="fragment"><code class="rust">
-    let f = Box::new(|client: &YourClient| -> YourFuture&lt;()&gt;) {
-        let future = ... ;
+    use reqwest::r#async::{Client, Decoder};
+    use futures::{Future, Stream};
 
-        Box::new(future).into()
-    };
-
-    let _ = sender.clone().send(closure).wait().map_err(|e| {
-        // handle queueing error
+    let client = Client::new();
+    let f1 = client
+        .get("https://www.rust-lang.org")
+        .send();
+            </code></pre>
+            <pre class="fragment"><code class="rust">
+    let f2 = f1.and_then(|mut resp| {
+        assert!(resp.status().as_u16(), 200);
+        resp.text()
+    }).and_then(|s| {
+        println!("{}", s);
     });
             </code></pre>
           </section>
