@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+  <meta charset="utf-8">
+  <title>Async/Await in Rust</title>
+  <meta name="description" content="August monthly meetup">
+  <meta name="author" content="wafflespeanut">
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="../../css/reveal.css">
+  <link rel="stylesheet" href="../../css/theme/simple.css" id="theme">
+  <link rel="stylesheet" href="../../lib/css/zenburn.css">
+  <link rel="stylesheet" href="../shared/custom.css">
+  <script>
+    if (window.location.search.match(/print-pdf/gi)) {
+      var link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.type = 'text/css';
+      link.href = '../../css/print/pdf.css';
+      document.getElementsByTagName('head')[0].appendChild(link);
+    }
+  </script>
+</head>
+
+<body>
+  <div class="reveal">
+    <div class="slides">
+      <section data-background="../shared/images/logo.png" data-background-size="12vw"
+        data-background-position="44vw 5vh">
+        <br />
+        <br />
+        <h3>Async/Await in Rust</h3>
+        <pre><code class="rust">
+    #[runtime::main]
+    async fn main() {
+        println!("வணக்கம்!");
+    }
+              </code></pre>
+        <p>
+          <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+        </p>
+      </section>
+      <section>
+        <section>
+          <h3>Zero Cost Abstractions</h3>
+          <blockquote class="fragment">"What you don't use, you don't pay for."</blockquote>
+          <blockquote class="fragment">"What you do use, you couldn't have hand-written it any better."</blockquote>
+        </section>
+        <section>
+          <h3>Existing zero-cost abstractions</h3>
+          <ul>
+            <li class="fragment roll-in">Ownership model</li>
+            <li class="fragment roll-in">Closures</li>
+            <li class="fragment roll-in">Iterators</li>
+            <li class="fragment roll-in">Futures</li>
+          </ul>
+        </section>
+      </section>
+      <section>
+        <section>
+          <h3>Async I/O</h3>
+          <p class="fragment"><strong>Don't block</strong> on I/O.</p>
+          <p class="fragment">Schedule and do something else!</p>
+          <p class="fragment">... but runtime?</p>
+        </section>
+        <section>
+          <h3>Green Threads [RIP]</h3>
+          <p class="fragment">Not preferable for a systems language!</p>
+          <p class="fragment">Runtime for all programs. Not zero cost!</p>
+          <p class="fragment">Removed in 2014 in favor of native threads <a
+              href="https://github.com/rust-lang/rfcs/blob/36af4320cdcbfc646562095b43051f6c94d23c53/text/0230-remove-runtime.md">[RFC]</a>
+          </p>
+        </section>
+        <section>
+          <h3>Library for async I/O and runtime?</h3>
+        </section>
+        <section>
+          <h3>Futures 0.1 [to RIP]</h3>
+          <pre class="fragment"><code class="rust">
+  trait Future {
+      type Item;
+      type Error;
+
+      fn poll(&amp;mut self) -&gt; Poll&lt;Self::Item, Self::Error&gt;;
+  }
+          </code></pre>
+          <pre class="fragment"><code class="rust">
+  type Poll&lt;T, E&gt; = Result&lt;Async&lt;T&gt;, E&gt;;
+
+  enum Async&lt;T&gt; {
+      Ready(T),
+      NotReady,
+  }
+          </code></pre>
+        </section>
+        <section>
+          <h3>Advantages?</h3>
+          <ul>
+            <li class="fragment">Poll-based model.</li>
+            <li class="fragment">Iterator-like (adapters and consumers).</li>
+            <li class="fragment">State machine. Single heap allocation.</li>
+            <li class="fragment">Choice of runtime (executor and reactor).</li>
+            <li class="fragment">Cancel? Stop polling!</li>
+          </ul>
+        </section>
+        <section>
+          <h3>Minor improvement</h3>
+          <pre class="fragment"><code class="rust">
+  trait Future {
+      type Output;
+
+      fn poll(&amp;mut self, waker: &amp;Waker) -&gt; Poll&lt;Self::Output&gt;;
+  }
+          </code></pre>
+          <ul>
+            <li class="fragment">Wake when ready. No need to keep polling!</li>
+            <li class="fragment">Executor/Reactor segregation.</li>
+          </ul>
+        </section>
+      </section>
+      <section>
+        <section>
+          <h3>Cons</h3>
+          <ul>
+            <li class="fragment">Runtime blocking <span class="fragment"><strong>(still a problem)</strong></span></li>
+            <li class="fragment">Lifetime constraints <span class="fragment"><strong>(solved)</strong></span></li>
+          </ul>
+        </section>
+        <section>
+          <h3>Futures [stable]</h3>
+          <pre class="fragment"><code class="rust">
+  trait Future {
+      type Output;
+
+      fn poll(self: Pin&lt;&amp;mut self&gt;, cx: &amp;mut Context)
+             -&gt; Poll&lt;Self::Output&gt;;
+  }
+          </code></pre>
+        </section>
+        <section>
+          <h3>Why <code>Pin</code>?</h3>
+          <ul>
+            <li class="fragment">All Rust types are <em>movable</em>.</li>
+            <li class="fragment">Futures needed <code>'static</code> lifetimes.</li>
+            <li class="fragment">Reference counting (<code>Rc</code> or <code>Arc</code>) was needed every now and then
+              (incurs runtime overhead).</li>
+          </ul>
+        </section>
+        <section>
+          <h3>async/await</h3>
+          <pre class="fragment"><code class="rust">
+  async fn fetch_stuff() -&gt; Result&lt;MyStuff, Error&gt; {
+      let s = String::from("booya");
+      let stuff = get_stuff(&s).await?;
+      Ok(stuff)
+  }
+          </code></pre>
+          <ul>
+            <li class="fragment">Generator gets built.</li>
+            <li class="fragment">Each await point transforms the state of the generator.</li>
+            <li class="fragment">Move happening across await points referencing the previous
+              state. <strong>(bad)</strong></li>
+          </ul>
+        </section>
+        <section>
+          <h3>Utilizing <code>Pin</code></h3>
+          <ul>
+            <li class="fragment">Wrap pointer types so that the underlying pointees don't move.</li>
+            <li class="fragment">Spawning future creates <code>Pin&lt;Box&lt;Future&gt;&gt;</code></li>
+            <li class="fragment">Reference through <code>Pin&lt;&amp;mut Future&gt;</code></li>
+            <li class="fragment">State machine can be self-referential, because it's never moved in the heap.</li>
+          </ul>
+        </section>
+      </section>
+      <section>
+        <h2>HTTP client example!</h2>
+      </section>
+      <section>
+        <h1>Thanks!</h1>
+        <p>
+          <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+        </p>
+      </section>
+    </div>
+  </div>
+
+  <script src="../../lib/js/head.min.js"></script>
+  <script src="../../js/reveal.js"></script>
+  <script>
+
+    Reveal.initialize({
+      controls: true,
+      progress: true,
+      history: true,
+      center: true,
+      autoSlideStoppable: false,
+      transitionSpeed: 'slow',
+      mouseWheel: true,
+      theme: Reveal.getQueryHash().theme,
+      transition: 'convex',   // none/fade/slide/convex/concave/zoom
+
+      dependencies: [
+        { src: '../../lib/js/classList.js', condition: function () { return !document.body.classList; } },
+        { src: '../../plugin/markdown/marked.js', condition: function () { return !!document.querySelector('[data-markdown]'); } },
+        { src: '../../plugin/markdown/markdown.js', condition: function () { return !!document.querySelector('[data-markdown]'); } },
+        { src: '../../plugin/highlight/highlight.js', async: true, callback: function () { hljs.initHighlightingOnLoad(); } },
+        { src: '../../plugin/zoom-js/zoom.js', async: true, condition: function () { return !!document.body.classList; } },
+        { src: '../../plugin/notes/notes.js', async: true, condition: function () { return !!document.body.classList; } }
+      ]
+    });
+  </script>
+</body>
+
+</html>
