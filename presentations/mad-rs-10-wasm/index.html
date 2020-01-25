@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Rust ❤️ Wasm</title>
+    <meta name="description" content="April monthly meetup">
+    <meta name="author" content="Wafflespeanut">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="../../css/reveal.css">
+    <link rel="stylesheet" href="../../css/theme/simple.css" id="theme">
+    <link rel="stylesheet" href="../../lib/css/zenburn.css">
+    <link rel="stylesheet" href="../shared/custom.css">
+    <script>
+      if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = '../../css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+      }
+    </script>
+  </head>
+
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section>
+          <div style="display: grid; grid-template-columns: repeat(5, 1fr); align-items: center;">
+            <span style="grid-column-start: 2;"><img src="../shared/images/logo.png" /></span>
+            <span style="font-size: 5em; color: red; font-stretch: ultra-condensed;">❤️</span>
+            <span><img src="./images/wasm.png" /></span>
+          </div>
+          <p>
+            <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+        <section>
+          <section>
+            <h2>Let's talk about... <span class="fragment"><strong>asm.js!</strong></span></h2>
+            <p class="fragment">(Mozilla research project)</p>
+            <p class="fragment">C/C++ => LLVM => emscripten => asm.js</p>
+            <ul>
+              <li class="fragment">Compile hand-written C/C++ code.</li>
+              <li class="fragment">... forward LLVM IR output to <a href="https://emscripten.org/">emscripten</a>.</li>
+              <li class="fragment">... to emit Javascript.</li>
+              <li class="fragment">... with abstractions and wrappers for libc.</li>
+            </ul>
+          </section>
+          <section>
+            <h2>In real life...</h2>
+            <pre class="fragment"><code class="c">
+  int add_one(int i) {
+    return i + 1;
+  }
+            </code></pre>
+            <p class="fragment">(Equivalent JS)</p>
+            <pre class="fragment"><code class="js">
+  function add_one(i) {
+    i = i|0;          // "i" is of 32-bits.
+    return (i + 1)|0; // so is this function's return value.
+  }                   // no overflow checks!
+            </code></pre>
+          </section>
+          <section>
+            <h2>Memory model?</h2>
+            <h3 class="fragment">Use one big <code>UInt8Array</code>!</h3>
+            <ul>
+              <li class="fragment">Serves as the stack/heap.</li>
+              <li class="fragment">Pointers are array indices.</li>
+            </ul>
+          </section>
+          <section>
+            <h3>Typical <code>strlen</code> check</h3>
+            <pre><code class="js">
+  function strlen(ptr) {
+    ptr = ptr|0;
+    var curr = ptr;
+    while ((UINT8ARRAY[curr]|0) != 0) {
+      curr = (curr + 1)|0;
+    }
+    return (curr - ptr)|0;
+  }
+            </code></pre>
+          </section>
+          <section>
+            <h3>Performance gains?</h3>
+            <ul>
+              <li class="fragment">No type checking! Ahead-of-time (AOT) optimizations during Just-in-time (JIT) compilation.</li>
+              <li class="fragment">No garbage collection!</li>
+            </ul>
+            <p class="fragment"><strong>Only 2X slower than native code!</strong></p>
+          </section>
+        </section>
+        <section data-background="./images/where.jpg">
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <q style="color: white;">I'm gonna ask you this one time. Where is WebAssembly?</q>
+        </section>
+        <section data-background="./images/what.jpg">
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <q style="color: white;">I'll do you one better. What is WebAssembly?</q>
+        </section>
+        <section data-background="./images/why.jpg">
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <br />
+          <q style="color: white;">I'll do you one better. Why is WebAssembly?</q>
+        </section>
+        <section>
+          <section>
+            <h2>Wasm!</h2>
+            <ul>
+              <li class="fragment">Influenced by <strong>asm.js</strong>.</li>
+              <li class="fragment">W3C standard. Another language for browser.</li>
+              <li class="fragment">Compiled. Unlike Javascript.</li>
+              <li class="fragment">Executed in a <em>virtual machine</em> with linear memory.</li>
+              <li class="fragment">Module supporting basic load/store, numeric, control flow, etc. instructions.</li>
+              <li class="fragment"><em>Traps</em> invalid executions.</li>
+              <li class="fragment">Safe (no direct access, no libc, respects CORS).</li>
+              <li class="fragment">Not limited to browsers!</li>
+            </ul>
+          </section>
+          <section>
+            <h2>Limitations?</h2>
+            <ul>
+              <li class="fragment">Value types limited to i32, i64, f32 and f64.<br />
+                <div style="text-align: right;"><small>(upcoming <a
+                      href="https://github.com/WebAssembly/interface-types/blob/master/proposals/interface-types/Explainer.md">"interface
+                      types"</a> proposal).</small></div>
+              </li>
+              <li class="fragment">No direct access to Javascript (or DOM) APIs.<br />
+                <div style="text-align: right;"><small>(upcoming <a
+                      href="https://github.com/WebAssembly/reference-types/blob/master/proposals/reference-types/Overview.md">"reference
+                      types"</a> proposal).</small></div>
+              </li>
+              <li class="fragment">No parallel execution.<br />
+                <div style="text-align: right;"><small>(post-MVP <a
+                      href="https://github.com/WebAssembly/threads/blob/master/proposals/threads/Overview.md">
+                      "threads and atomics"</a> feature)</small></div>
+              </li>
+              <li class="fragment">Manual memory management.<br />
+                <div style="text-align: right;"><small>(upcoming <a
+                      href="https://github.com/WebAssembly/gc/blob/master/proposals/gc/Overview.md">
+                      "GC"</a> proposal).</small></div>
+              </li>
+            </ul>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h3>Simple math example</h3>
+            <pre class="fragment"><code class="rs">
+  pub fn multiply(a: i32, b: i32) -> i32 {
+      a * b
+  }
+            </code></pre>
+            <pre class="fragment"><code class="wasm">
+  (module
+    (type $t0 (func (param i32 i32) (result i32)))
+    (func $simple_math::multiply (export "multiply") (type $t0)
+     (param $p0 i32) (param $p1 i32) (result i32)
+      local.get $p1
+      local.get $p0
+      i32.mul)
+    (memory $memory 17)
+    (export "multiply" (func $simple_math::multiply))
+    (export "memory" (memory 0)))
+            </code></pre>
+          </section>
+          <section>
+            <h3>What about complex objects?</h3>
+            <pre><code class="rs">
+  // Not supported by wasm yet!
+  pub fn multiply(a: i32, b: i32) -> String {
+      (a * b).to_string()
+  }
+            </code></pre>
+          </section>
+          <section>
+            <h3><code>wasm_bindgen</code> to the rescue!</h3>
+            <pre><code class="rs">
+  #[wasm_bindgen]  // works now!
+  pub fn multiply(a: i32, b: i32) -> String {
+      (a * b).to_string()
+  }
+            </code></pre>
+          </section>
+          <section>
+            <h3>DOM &amp; JS APIs?</h3>
+            <p class="fragment"><strong>Yes!</strong></p>
+          </section>
+          <section>
+            <h3>Meet <code>web_sys</code> and <code>js_sys</code></h3>
+            <pre><code class="rs">
+  #[wasm_bindgen]
+  pub fn add_one(arr: &[u32]) -> web_sys::Array {
+      arr.iter().map(|&i| i + 1).collect()
+  }
+            </code></pre>
+            <pre class="fragment"><code class="rs">
+  #[wasm_bindgen]
+  extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s: &str);
+  }
+            </code></pre>
+            <pre class="fragment"><code class="rs">
+  #[wasm_bindgen(js_rename = logWasm)]
+  pub fn log_from_wasm(s: &str) {
+      log(s);
+  }
+            </code></pre>
+          </section>
+          <section>
+            <h2>Let's wasm-pack!</h2>
+          </section>
+        </section>
+        <section>
+          <section>
+            <h3>Resources</h3>
+            <ul>
+              <li>Rust wasm - <a href="https://rustwasm.github.io/">https://rustwasm.github.io</a></li>
+              <li>wasm-pack - <a href="https://github.com/rustwasm/wasm-pack/">https://github.com/rustwasm/wasm-pack</a></li>
+              <li>wasm-bindgen - <a href="https://github.com/rustwasm/wasm-bindgen">https://github.com/rustwasm/wasm-bindgen</a></li>
+              <li>Webassembly Studio - <a href="https://webassembly.studio/">https://webassembly.studio</a></li>
+              <li>WABT - <a href="https://github.com/WebAssembly/wabt">https://github.com/WebAssembly/wabt</a></li>
+              <li>Awesome Wasm - <a href="https://github.com/mbasso/awesome-wasm">https://github.com/mbasso/awesome-wasm</a></li>
+            </ul>
+          </section>
+          <section>
+            <h1>Thanks!</h1>
+            <p>
+              <small><a href="https://twitter.com/wafflespeanut">@wafflespeanut</a></small>
+            </p>
+          </section>
+        </section>
+      </div>
+    </div>
+
+    <script src="../../lib/js/head.min.js"></script>
+    <script src="../../js/reveal.js"></script>
+    <script>
+
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        autoSlideStoppable: false,
+        transitionSpeed: 'slow',
+        mouseWheel: true,
+        theme: Reveal.getQueryHash().theme,
+        transition: 'none',   // none/fade/slide/convex/concave/zoom
+
+        dependencies: [
+          { src: '../../lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: '../../plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+          { src: '../../plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+          { src: '../../plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+        ]
+      });
+    </script>
+  </body>
+</html>
