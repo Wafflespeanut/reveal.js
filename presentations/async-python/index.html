@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Async Python</title>
+    <meta name="description" content="Intro to async programming using Python">
+    <meta name="author" content="wafflespeanut">
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="../../css/reveal.css">
+    <link rel="stylesheet" href="../../css/theme/simple.css" id="theme">
+    <link rel="stylesheet" href="../../lib/css/zenburn.css">
+    <script>
+      if( window.location.search.match( /print-pdf/gi ) ) {
+        var link = document.createElement( 'link' );
+        link.rel = 'stylesheet';
+        link.type = 'text/css';
+        link.href = '../../css/print/pdf.css';
+        document.getElementsByTagName( 'head' )[0].appendChild( link );
+      }
+    </script>
+  </head>
+
+  <body>
+    <div class="reveal">
+      <div class="slides">
+        <section data-background="images/logo.png" data-background-size="600px">
+          <h2>Async Python</h2>
+          <p>
+            <small><a href="http://twitter.com/Wafflespeanut">@wafflespeanut</a></small>
+          </p>
+        </section>
+        <section>
+          <h3>Computer programs</h3>
+          <ul>
+            <li class="fragment">CPU can only work on one (or two) thing at a time.</li>
+            <li class="fragment"><em>Insane</em> context-switching done by OS (preemptive)</li>
+            <li class="fragment">Program's discretion to execute instructions sequentially or in parallel (preemptive or cooperative)</li>
+          </ul>
+        </section>
+        <section>
+          <p>Some "blocking" code</p>
+          <pre><code class="py">
+  import time
+
+  def work(n):
+      time.sleep(n)  # some long running work
+      print("Done", n)
+
+  work(20)
+  work(7)
+  work(10)
+  work(8)
+          </code></pre>
+          <p>How long would this take?</p>
+        </section>
+        <section>
+          <img src="images/async-sync.jpg" />
+          <p style="font-size: 0.5em">© <a href="https://www.reddit.com/r/learnjavascript/comments/gboy8r/async_vs_sync/">/u/golovatuy @ /r/learnjavascript</a></p>
+        </section>
+        <section>
+          <p>Same code, blocking elsewhere...</p>
+          <pre><code class="py">
+  import time
+  from threading import Thread
+
+  def work(n):
+      time.sleep(n)  # some long running work
+      print("Done", n)
+
+  h = [Thread(target=work, args=(n,)) for n in (20, 7, 10, 8)]
+  _ = [t.start() for t in h]
+  _ = [t.join() for t in h]
+          </code></pre>
+        </section>
+        <section>
+          <h3>Problem?</h3>
+          <ul>
+            <li class="fragment">Stack sizes</li>
+            <li class="fragment">OS and runtime limits</li>
+            <li class="fragment">On-the-fly creation expensive</li>
+            <li class="fragment">Expensive context switching</li>
+          </ul>
+        </section>
+        <section>
+          <p>Same code, blocking off-world...</p>
+          <pre><code class="py">
+  import os, time
+  from multiprocessing import Process
+
+  def work(n):
+      time.sleep(n)  # some long running work
+      print("Done", n, os.getpid())
+
+  h = [Process(target=work, args=(n,)) for n in (20, 7, 10, 8)]
+  _ = [p.start() for p in h]
+  _ = [p.join() for p in h]
+          </code></pre>
+        </section>
+        <section>
+          <h3>Problem?</h3>
+          <ul>
+            <li class="fragment">Stack sizes</li>
+            <li class="fragment">IPC overhead</li>
+            <li class="fragment">On-the-fly creation expensive</li>
+            <li class="fragment">Expensive context switching</li>
+          </ul>
+        </section>
+        <section>
+          <p>Same code, non-blocking...</p>
+          <pre><code class="py">
+  import asyncio
+
+  async def work(n):
+      await asyncio.sleep(n)  # some long running work
+      print("Done", n)
+          </code></pre>
+          <pre class="fragment"><code class="py">
+  loop = asyncio.get_event_loop()
+  t = [loop.create_task(work(n)) for n in (20, 7, 10, 8)]
+  group = asyncio.gather(*t)
+  loop.run_until_complete(group)  # block until all finish
+          </code></pre>
+        </section>
+        <section>
+          <h3>How does it work?</h3>
+          <ul>
+            <li class="fragment">One giant loop!</li>
+            <li class="fragment">Tasks submitted to the loop</li>
+            <li class="fragment">A "piece" of work is done at each step</li>
+          </ul>
+        </section>
+        <section>
+          <h3>Perks</h3>
+        </section>
+        <section>
+          <p>Large number of I/O tasks in same thread</p>
+          <pre><code class="py">
+  import asyncio, aiohttp
+
+  async def work():
+      async with aiohttp.ClientSession() as c:
+          async with c.get("https://www.google.com") as resp:
+              return len(await resp.text())
+
+  loop = asyncio.get_event_loop()
+  t = [loop.create_task(work()) for _ in range(500)]
+  ret = loop.run_until_complete(asyncio.gather(*t))
+  print(sum(ret))
+          </code></pre>
+        </section>
+        <section>
+          <p>Possibility to cancel tasks</p>
+          <pre><code class="py">
+  import asyncio, aiohttp
+
+  async def work(n):
+      await asyncio.sleep(n)
+      print("Done", n)
+
+  loop = asyncio.get_event_loop()
+  t1 = loop.create_task(work(10))
+  t2 = loop.create_task(work(5))
+  loop.run_until_complete(t2)
+  t1.cancel()
+          </code></pre>
+        </section>
+        <section>
+          <h3>Common pitfalls</h3>
+        </section>
+        <section>
+          <p>Forgetting to "await"</p>
+          <pre><code class="py">
+  import asyncio
+
+  async def work(n):
+      asyncio.sleep(n)  # Oops...
+      print("Done", n)
+
+  loop = asyncio.get_event_loop()
+  t = [loop.create_task(work(n)) for n in (20, 7, 10, 8)]
+  loop.run_until_complete(asyncio.gather(*t))
+          </code></pre>
+        </section>
+        <section>
+          <p>Sync call inside async function...</p>
+          <pre><code class="py">
+  import asyncio, time
+
+  async def work(n):
+      time.sleep(n)  # Uh oh...
+      print("Done", n)
+
+  loop = asyncio.get_event_loop()
+  t = [loop.create_task(work(n)) for n in (20, 7, 10, 8)]
+  loop.run_until_complete(asyncio.gather(*t))
+          </code></pre>
+        </section>
+        <section>
+          <p><strong>Solution: </strong>Use threads!</p>
+          <pre><code class="py">
+  import asyncio, time
+  from concurrent.futures.thread import ThreadPoolExecutor
+
+  loop = asyncio.get_event_loop()
+  pool = ThreadPoolExecutor(max_workers=8)
+          </code></pre>
+          <pre><code class="py">
+  async def work(n):
+      await loop.run_in_executor(pool, time.sleep, n)
+      print("Done", n)
+
+  t = [loop.create_task(work(n)) for n in (20, 7, 10, 8)]
+  loop.run_until_complete(asyncio.gather(*t))
+          </code></pre>
+        </section>
+        <section>
+          <p>Moaarrrr CPU inside async function...</p>
+          <pre><code class="py">
+  import asyncio
+
+  def my_sum(n):
+      return sum(i ** 10 for i in range(int(n)))
+
+  async def work(n):
+      print("Done", my_sum(s))
+
+  loop = asyncio.get_event_loop()
+  t = [loop.create_task(work(n)) for n in (5e6, 3e6, 8e6, 2e6)]
+  loop.run_until_complete(asyncio.gather(*t))
+          </code></pre>
+        </section>
+        <section>
+          <p><strong>Solution: </strong>Use processes!</p>
+          <pre><code class="py">
+  import asyncio, time
+  from concurrent.futures.thread import ProcessPoolExecutor
+
+  loop = asyncio.get_event_loop()
+  pool = ProcessPoolExecutor(max_workers=8)
+          </code></pre>
+          <pre><code class="py">
+  def my_sum(n):
+      return sum(i ** 10 for i in range(int(n)))
+
+  async def work(n):
+      result = await loop.run_in_executor(pool, my_sum, n)
+      print("Done", result)
+
+  t = [loop.create_task(work(n)) for n in (5e6, 3e6, 8e6, 2e6)]
+  loop.run_until_complete(asyncio.gather(*t))
+          </code></pre>
+        </section>
+        <section>
+          <h3>async/await ftw!</h3>
+        </section>
+      </div>
+    </div>
+
+    <script src="../../lib/js/head.min.js"></script>
+    <script src="../../js/reveal.js"></script>
+    <script>
+
+      Reveal.initialize({
+        controls: true,
+        progress: true,
+        history: true,
+        center: true,
+        autoSlideStoppable: false,
+        transitionSpeed: 'slow',
+        mouseWheel: true,
+
+        theme: Reveal.getQueryHash().theme,
+        transition: "none",
+
+        dependencies: [
+          { src: '../../lib/js/classList.js', condition: function() { return !document.body.classList; } },
+          { src: '../../plugin/markdown/marked.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/markdown/markdown.js', condition: function() { return !!document.querySelector( '[data-markdown]' ); } },
+          { src: '../../plugin/highlight/highlight.js', async: true, callback: function() { hljs.initHighlightingOnLoad(); } },
+          { src: '../../plugin/zoom-js/zoom.js', async: true, condition: function() { return !!document.body.classList; } },
+          { src: '../../plugin/notes/notes.js', async: true, condition: function() { return !!document.body.classList; } }
+        ]
+      });
+    </script>
+  </body>
+</html>
